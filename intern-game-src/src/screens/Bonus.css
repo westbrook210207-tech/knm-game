@@ -1,0 +1,141 @@
+.bonus {
+  background: var(--bg-dark);
+  overflow: hidden;
+}
+
+.bonus-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 1.5rem;
+  overflow: hidden;
+}
+
+.bonus-boss-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  max-width: 700px;
+  flex-shrink: 0;
+}
+
+.bonus-dialog {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  min-height: 52px;
+}
+
+.bonus-lives {
+  display: flex;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+/* Game grid */
+.bonus-game-wrap {
+  flex-shrink: 0;
+  border: 3px solid var(--accent-yellow);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: var(--shadow-glow);
+}
+
+.bonus-grid {
+  background: #111;
+}
+
+.bonus-lane {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.bonus-lane.road {
+  background: #1a1a1a;
+}
+
+.bonus-lane.safe {
+  background: #1e2a1e;
+}
+
+.bonus-goal-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--accent-green);
+  letter-spacing: 2px;
+  z-index: 2;
+}
+
+.bonus-car {
+  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.bonus-player {
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  filter: drop-shadow(0 0 8px rgba(245,197,24,0.8));
+  pointer-events: none;
+}
+
+/* D-Pad */
+.bonus-dpad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.dpad-row {
+  display: flex;
+  gap: 2px;
+}
+
+.dpad-btn {
+  width: 44px;
+  height: 44px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  font-family: var(--font-body);
+}
+
+.dpad-btn:hover:not(:disabled) {
+  background: rgba(245,197,24,0.1);
+  border-color: var(--accent-yellow);
+}
+
+.dpad-btn:active:not(:disabled) {
+  background: rgba(245,197,24,0.2);
+}
+
+.dpad-center {
+  opacity: 0.2;
+  cursor: default;
+}
+
+.bonus-next-btn {
+  font-size: 1.05rem;
+  padding: 0.7rem 2rem;
+}
+
+.bonus-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
