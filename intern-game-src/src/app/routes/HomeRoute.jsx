@@ -39,6 +39,12 @@ export default function HomeRoute() {
           <strong>Prototype Flow</strong>
           <p>Ban game hien tai, van dung de demo va so sanh UI.</p>
         </Link>
+
+        <Link className="route-card" to="/prototype?control=1">
+          <span className="route-card__eyebrow">Organizer</span>
+          <strong>Prototype Control</strong>
+          <p>Mo prototype reference kem control panel de test nhanh flow local.</p>
+        </Link>
       </section>
 
       <section className="route-hub__teams fade-in">

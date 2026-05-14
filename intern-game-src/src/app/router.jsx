@@ -5,6 +5,7 @@ import AdminRoute from './routes/AdminRoute';
 import PresenterRoute from './routes/PresenterRoute';
 import TeamRoute from './routes/TeamRoute';
 import JudgeRoute from './routes/JudgeRoute';
+import NotFoundRoute from './routes/NotFoundRoute';
 
 const router = createBrowserRouter([
   {
@@ -30,6 +31,10 @@ const router = createBrowserRouter([
   {
     path: '/prototype',
     element: <PrototypeApp />,
+  },
+  {
+    path: '*',
+    element: <NotFoundRoute />,
   },
 ]);
 

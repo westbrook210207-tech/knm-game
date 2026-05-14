@@ -38,8 +38,8 @@ export default function TeamRoute() {
           <h2>Migration bridge</h2>
           <p>
             Ban co the tiep tuc tham chieu gameplay hien tai qua{' '}
-            <Link className="route-inline-link" to="/prototype">
-              /prototype
+            <Link className="route-inline-link" to={`/prototype?team=${team.id}`}>
+              prototype da preselect team
             </Link>.
           </p>
         </div>

@@ -5,9 +5,18 @@ import Typewriter from '../components/Typewriter';
 import { TEAMS } from '../data/teams';
 import './Lobby.css';
 
+function getInitialTeamSelection() {
+  if (typeof window === 'undefined') return null;
+
+  const teamId = new URLSearchParams(window.location.search).get('team');
+  if (!teamId) return null;
+
+  return TEAMS.find((team) => team.id === teamId) ?? null;
+}
+
 export default function Lobby() {
   const { dispatch } = useGame();
-  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [selectedTeam, setSelectedTeam] = useState(() => getInitialTeamSelection());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dialogDone, setDialogDone] = useState(false);

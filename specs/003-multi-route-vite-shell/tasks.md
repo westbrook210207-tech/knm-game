@@ -11,6 +11,7 @@
 - [x] Create a shared role shell layout component
 - [x] Create `HomeRoute`, `AdminRoute`, `PresenterRoute`, `TeamRoute`, and `JudgeRoute`
 - [x] Handle invalid `teamId` and `judgeId` states gracefully
+- [x] Add a fallback route for invalid URLs
 
 ## Phase 3 - Visual System Reuse
 
