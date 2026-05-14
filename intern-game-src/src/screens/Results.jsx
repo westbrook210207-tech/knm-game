@@ -1,20 +1,13 @@
 import { useGame } from '../hooks/useGameContext';
 import HUD from '../components/HUD';
+import { calculateTotalScore, tokensToPoints } from '../game/scoring';
 import './Results.css';
-
-const TOKEN_CONVERSION = [
-  { min: 18, points: 5 }, { min: 14, points: 4 },
-  { min: 9, points: 3 }, { min: 4, points: 2 }, { min: 0, points: 1 },
-];
-function tokensToPoints(t) {
-  return TOKEN_CONVERSION.find((r) => t >= r.min)?.points ?? 0;
-}
 
 export default function Results() {
   const { state, dispatch } = useGame();
-  const { tokens, round1Score, round2Score, bonusScore, teamName } = state;
-  const r1 = round1Score || tokensToPoints(tokens);
-  const total = r1 + round2Score + bonusScore;
+  const { team, round1, round2, bonus } = state;
+  const r1 = round1.score || tokensToPoints(round1.tokens);
+  const total = calculateTotalScore(r1, round2.score, bonus.score);
 
   const verdict = total >= 9
     ? { label: 'THĂNG CHỨC! 🎉', cls: 'promoted', msg: 'Chúc mừng! Bạn đã chứng minh được năng lực. Tập Đoàn XYZ chính thức tuyển dụng phòng ban của bạn!' }
@@ -22,8 +15,8 @@ export default function Results() {
 
   const rows = [
     { label: 'Vòng 1 — Ngân sách nhân sự', score: r1, max: 5, icon: '🪙' },
-    { label: 'Vòng 2 — Họp khẩn với sếp', score: round2Score, max: 5, icon: '🗂️' },
-    { label: 'Bonus — Vượt đường về nhà', score: bonusScore, max: 2, icon: '🎮' },
+    { label: 'Vòng 2 — Họp khẩn với sếp', score: round2.score, max: 5, icon: '🗂️' },
+    { label: 'Bonus — Vượt đường về nhà', score: bonus.score, max: 2, icon: '🎮' },
   ];
 
   return (
@@ -40,7 +33,7 @@ export default function Results() {
         </div>
 
         <div className="results-card slide-up">
-          <div className="results-team-name">📋 {teamName || 'Phòng ban của bạn'}</div>
+          <div className="results-team-name">📋 {team.name || 'Phòng ban của bạn'}</div>
 
           <div className="results-rows">
             {rows.map((r) => (
@@ -66,7 +59,7 @@ export default function Results() {
 
         <button
           className="btn btn-ghost results-restart"
-          onClick={() => dispatch({ type: 'SET_SCREEN', payload: 'lobby' })}
+          onClick={() => dispatch({ type: 'RESET_GAME' })}
         >
           ↩ Chơi lại
         </button>

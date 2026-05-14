@@ -2,19 +2,8 @@ import { useState } from 'react';
 import { useGame } from '../hooks/useGameContext';
 import { createSession } from '../api';
 import Typewriter from '../components/Typewriter';
+import { TEAMS } from '../data/teams';
 import './Lobby.css';
-
-const TEAMS = [
-  { id: 'finance',    name: 'Phòng Tài Chính',          icon: '💰' },
-  { id: 'business',  name: 'Phòng Kinh Doanh',          icon: '📊' },
-  { id: 'marketing', name: 'Phòng Marketing',            icon: '📣' },
-  { id: 'logistics', name: 'Phòng Logistics',            icon: '🚚' },
-  { id: 'it',        name: 'Phòng CNTT',                 icon: '💻' },
-  { id: 'accounting',name: 'Phòng Kế Toán',              icon: '🗂️' },
-  { id: 'legal',     name: 'Phòng Pháp Chế',             icon: '⚖️' },
-  { id: 'media',     name: 'Phòng Truyền Thông',         icon: '📡' },
-  { id: 'trade',     name: 'Phòng Ngoại Thương',         icon: '🌏' },
-];
 
 export default function Lobby() {
   const { dispatch } = useGame();
@@ -39,7 +28,7 @@ export default function Lobby() {
       dispatch({ type: 'SET_SESSION', payload: sessionData });
       dispatch({ type: 'SET_TEAM', payload: selectedTeam });
       dispatch({ type: 'SET_SCREEN', payload: 'round1' });
-    } catch (e) {
+    } catch {
       setError('Không thể kết nối server. Vui lòng thử lại.');
     } finally {
       setLoading(false);

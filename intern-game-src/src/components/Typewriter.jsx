@@ -4,6 +4,11 @@ export default function Typewriter({ text, speed = 30, onDone }) {
   const [displayed, setDisplayed] = useState('');
   const indexRef = useRef(0);
   const timerRef = useRef(null);
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   useEffect(() => {
     setDisplayed('');
@@ -16,7 +21,7 @@ export default function Typewriter({ text, speed = 30, onDone }) {
         indexRef.current++;
       } else {
         clearInterval(timerRef.current);
-        onDone?.();
+        onDoneRef.current?.();
       }
     }, speed);
 

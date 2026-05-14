@@ -1,55 +1,158 @@
-import { createContext, useContext, useReducer } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
+import { getInitialBonusState } from '../game/bonus';
+import { getInitialRound1State } from '../game/round1';
+import { getInitialRound2State } from '../game/round2';
+import { calculateTotalScore } from '../game/scoring';
+import {
+  clearPersistedSession,
+  loadPersistedSession,
+  persistSession,
+} from '../game/sessionPersistence';
 
 const GameContext = createContext(null);
 
-const initialState = {
-  screen: 'lobby',           // lobby | round1 | round2 | bonus | results
+const baseState = {
+  screen: 'lobby',
   sessionId: null,
-  teamId: null,
-  teamName: null,
-  tokens: 10,                // Round 1 tokens
-  round1Score: 0,
-  round2Score: 0,
-  bonusScore: 0,
-  totalScore: 0,
-  currentQuestion: 0,
   allTeams: [],
+  team: {
+    id: null,
+    name: null,
+  },
+  round1: getInitialRound1State(),
+  round2: getInitialRound2State(),
+  bonus: getInitialBonusState(),
+  results: {
+    totalScore: 0,
+  },
 };
+
+function computeTotalScore(state) {
+  return calculateTotalScore(
+    state.round1.score,
+    state.round2.score,
+    state.bonus.score
+  );
+}
+
+function createState(overrides = {}) {
+  const nextState = {
+    ...baseState,
+    ...overrides,
+    team: { ...baseState.team, ...(overrides.team || {}) },
+    round1: { ...getInitialRound1State(), ...(overrides.round1 || {}) },
+    round2: { ...getInitialRound2State(), ...(overrides.round2 || {}) },
+    bonus: { ...getInitialBonusState(), ...(overrides.bonus || {}) },
+    results: {
+      ...baseState.results,
+      ...(overrides.results || {}),
+    },
+  };
+
+  nextState.results.totalScore = computeTotalScore(nextState);
+  return nextState;
+}
+
+const initialState = createState(loadPersistedSession() || {});
 
 function reducer(state, action) {
   switch (action.type) {
     case 'SET_SCREEN':
       return { ...state, screen: action.payload };
     case 'SET_SESSION':
-      return { ...state, sessionId: action.payload.sessionId, allTeams: action.payload.teams || [] };
-    case 'SET_TEAM':
-      return { ...state, teamId: action.payload.id, teamName: action.payload.name, tokens: 10 };
-    case 'UPDATE_TOKENS':
-      return { ...state, tokens: action.payload };
-    case 'SET_ROUND1_SCORE':
-      return { ...state, round1Score: action.payload };
-    case 'SET_ROUND2_SCORE':
-      return { ...state, round2Score: action.payload };
-    case 'SET_BONUS_SCORE':
-      return { ...state, bonusScore: action.payload };
-    case 'NEXT_QUESTION':
-      return { ...state, currentQuestion: state.currentQuestion + 1 };
-    case 'RESET_QUESTION':
-      return { ...state, currentQuestion: 0 };
-    case 'CALC_TOTAL':
       return {
         ...state,
-        totalScore: state.round1Score + state.round2Score + state.bonusScore,
+        sessionId: action.payload.sessionId,
+        allTeams: action.payload.teams || [],
       };
+    case 'SET_TEAM':
+      return {
+        ...state,
+        team: { id: action.payload.id, name: action.payload.name },
+        round1: { ...state.round1, tokens: 10, currentQuestion: 0, score: 0 },
+        round2: getInitialRound2State(),
+        bonus: getInitialBonusState(),
+        results: { totalScore: 0 },
+      };
+    case 'UPDATE_TOKENS':
+      return {
+        ...state,
+        round1: { ...state.round1, tokens: action.payload },
+      };
+    case 'SET_ROUND1_SCORE':
+      return createState({
+        ...state,
+        round1: { ...state.round1, score: action.payload },
+      });
+    case 'SET_ROUND2_SCORE':
+      return createState({
+        ...state,
+        round2: { ...state.round2, score: action.payload },
+      });
+    case 'SET_BONUS_SCORE':
+      return createState({
+        ...state,
+        bonus: { ...state.bonus, score: action.payload },
+      });
+    case 'NEXT_QUESTION':
+      return {
+        ...state,
+        round1: {
+          ...state.round1,
+          currentQuestion: state.round1.currentQuestion + 1,
+        },
+      };
+    case 'RESET_QUESTION':
+      return {
+        ...state,
+        round1: { ...state.round1, currentQuestion: 0 },
+      };
+    case 'SET_ROUND1_QUESTION':
+      return {
+        ...state,
+        round1: { ...state.round1, currentQuestion: action.payload },
+      };
+    case 'RESET_GAME':
+      clearPersistedSession();
+      return createState();
+    case 'CALC_TOTAL':
+      return createState(state);
     default:
       return state;
   }
 }
 
+function addLegacyAliases(state) {
+  return {
+    ...state,
+    teamId: state.team.id,
+    teamName: state.team.name,
+    tokens: state.round1.tokens,
+    round1Score: state.round1.score,
+    round2Score: state.round2.score,
+    bonusScore: state.bonus.score,
+    totalScore: state.results.totalScore,
+    currentQuestion: state.round1.currentQuestion,
+  };
+}
+
 export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  useEffect(() => {
+    persistSession(state);
+  }, [state]);
+
+  const value = useMemo(
+    () => ({
+      state: addLegacyAliases(state),
+      dispatch,
+    }),
+    [state]
+  );
+
   return (
-    <GameContext.Provider value={{ state, dispatch }}>
+    <GameContext.Provider value={value}>
       {children}
     </GameContext.Provider>
   );

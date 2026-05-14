@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './Timer.css';
 
 export default function Timer({ seconds, onExpire, paused = false }) {
   const [remaining, setRemaining] = useState(seconds);
+  const onExpireRef = useRef(onExpire);
+
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
   useEffect(() => {
     setRemaining(seconds);
@@ -11,7 +16,7 @@ export default function Timer({ seconds, onExpire, paused = false }) {
   useEffect(() => {
     if (paused) return;
     if (remaining <= 0) {
-      onExpire?.();
+      onExpireRef.current?.();
       return;
     }
     const t = setTimeout(() => setRemaining((r) => r - 1), 1000);

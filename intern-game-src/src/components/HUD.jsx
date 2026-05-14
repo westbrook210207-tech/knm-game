@@ -11,7 +11,7 @@ const SCREEN_LABELS = {
 
 export default function HUD() {
   const { state } = useGame();
-  const { screen, teamName, tokens, round1Score, round2Score, bonusScore } = state;
+  const { screen, team, round1, round2, bonus } = state;
 
   return (
     <div className="hud">
@@ -21,10 +21,10 @@ export default function HUD() {
       </div>
 
       <div className="hud-center">
-        {teamName && (
+        {team.name && (
           <span className="hud-team">
             <span className="hud-team-icon">👤</span>
-            {teamName}
+            {team.name}
           </span>
         )}
       </div>
@@ -32,15 +32,15 @@ export default function HUD() {
       <div className="hud-right">
         {screen === 'round1' && (
           <div className="token-badge">
-            🪙 <span>{tokens}</span> tokens
+            🪙 <span>{round1.tokens}</span> tokens
           </div>
         )}
         <div className="hud-scores">
-          <span className="hud-score-item" title="Vòng 1">V1: <b>{round1Score}</b></span>
+          <span className="hud-score-item" title="Vòng 1">V1: <b>{round1.score}</b></span>
           <span className="hud-score-sep">|</span>
-          <span className="hud-score-item" title="Vòng 2">V2: <b>{round2Score}</b></span>
+          <span className="hud-score-item" title="Vòng 2">V2: <b>{round2.score}</b></span>
           <span className="hud-score-sep">|</span>
-          <span className="hud-score-item" title="Bonus">B: <b>{bonusScore}</b></span>
+          <span className="hud-score-item" title="Bonus">B: <b>{bonus.score}</b></span>
         </div>
       </div>
     </div>

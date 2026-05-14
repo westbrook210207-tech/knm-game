@@ -240,6 +240,176 @@ body {
   transition: width 1s linear, background 0.3s;
 }
 
+.route-shell,
+.route-hub {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at top, rgba(30, 136, 229, 0.14), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(245, 197, 24, 0.16), transparent 28%),
+    linear-gradient(180deg, #08080d 0%, #10101a 100%);
+}
+
+.route-shell__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+  pointer-events: none;
+}
+
+.route-shell__header,
+.route-shell__content,
+.route-hub__hero,
+.route-hub__grid,
+.route-hub__teams {
+  position: relative;
+  z-index: 1;
+}
+
+.route-shell__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem 0;
+}
+
+.route-shell__back,
+.route-inline-link {
+  color: var(--accent-yellow);
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.route-shell__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 2rem;
+}
+
+.route-shell__hero,
+.route-hub__hero {
+  max-width: 58rem;
+}
+
+.route-shell__eyebrow,
+.route-card__eyebrow {
+  font-family: var(--font-mono);
+  color: var(--accent-blue);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.route-shell__title {
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 8vw, 5.4rem);
+  line-height: 0.9;
+  letter-spacing: 0.08em;
+  color: var(--accent-yellow);
+  margin-bottom: 0.75rem;
+}
+
+.route-shell__subtitle {
+  max-width: 52rem;
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+}
+
+.route-shell__panel {
+  max-width: 70rem;
+}
+
+.route-info-grid,
+.route-hub__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.route-info-card,
+.route-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  min-height: 160px;
+}
+
+.route-card:hover,
+.route-info-card:hover,
+.route-team-link:hover {
+  border-color: var(--accent-yellow);
+  box-shadow: var(--shadow-glow);
+}
+
+.route-info-card h2,
+.route-card strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--accent-yellow);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.route-hub {
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.route-hub__grid,
+.route-hub__teams {
+  margin-top: 1.5rem;
+}
+
+.route-hub__team-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.route-team-link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    overflow: auto;
+  }
+
+  .route-shell__header,
+  .route-shell__content,
+  .route-hub {
+    padding: 1rem;
+  }
+
+  .route-info-grid,
+  .route-hub__grid,
+  .route-hub__team-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Round tag */
 .round-tag {
   font-family: var(--font-display);

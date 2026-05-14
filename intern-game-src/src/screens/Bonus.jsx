@@ -2,54 +2,31 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGame } from '../hooks/useGameContext';
 import { submitBonusResult } from '../api';
 import HUD from '../components/HUD';
+import {
+  BONUS_COLS,
+  BONUS_GOAL_ROW,
+  BONUS_LANE_CONFIG,
+  BONUS_ROWS,
+  BONUS_STARTING_LIVES,
+  BONUS_WIN_SCORE,
+  clampPlayerPosition,
+  createInitialPlayerPosition,
+  initCars,
+} from '../game/bonus';
 import './Bonus.css';
-
-const COLS = 9;
-const ROWS = 12;
-const PLAYER_ROW_START = ROWS - 1;
-const GOAL_ROW = 0;
-
-// Lane config: each row has cars going left or right at varying speeds
-const LANE_CONFIG = [
-  { type: 'safe',  cars: [] },                         // row 0 = goal
-  { type: 'road',  cars: [{ col: 6, dir: -1, speed: 0.6 }] },
-  { type: 'road',  cars: [{ col: 1, dir: 1,  speed: 0.8 }, { col: 7, dir: 1, speed: 0.8 }] },
-  { type: 'road',  cars: [{ col: 4, dir: -1, speed: 0.5 }] },
-  { type: 'safe',  cars: [] },                         // row 4 = median
-  { type: 'road',  cars: [{ col: 0, dir: 1,  speed: 0.9 }, { col: 5, dir: 1, speed: 0.9 }] },
-  { type: 'road',  cars: [{ col: 2, dir: -1, speed: 0.7 }] },
-  { type: 'road',  cars: [{ col: 8, dir: -1, speed: 0.6 }, { col: 3, dir: -1, speed: 0.6 }] },
-  { type: 'safe',  cars: [] },                         // row 8 = sidewalk
-  { type: 'road',  cars: [{ col: 0, dir: 1,  speed: 1.0 }] },
-  { type: 'road',  cars: [{ col: 4, dir: -1, speed: 0.8 }] },
-  { type: 'safe',  cars: [] },                         // row 11 = start
-];
-
-function initCars() {
-  return LANE_CONFIG.flatMap((lane, row) =>
-    lane.cars.map((c, i) => ({
-      id: `${row}-${i}`,
-      row,
-      col: c.col,
-      dir: c.dir,
-      speed: c.speed,
-      t: 0,
-    }))
-  );
-}
 
 export default function Bonus() {
   const { state, dispatch } = useGame();
-  const { sessionId, teamId } = state;
+  const { sessionId, team } = state;
 
-  const [playerPos, setPlayerPos] = useState({ row: PLAYER_ROW_START, col: 4 });
+  const [playerPos, setPlayerPos] = useState(createInitialPlayerPosition);
   const [cars, setCars] = useState(initCars);
   const [phase, setPhase] = useState('playing'); // playing | dead | won
-  const [lives, setLives] = useState(3);
+  const [lives, setLives] = useState(BONUS_STARTING_LIVES);
   const [submitted, setSubmitted] = useState(false);
   const animRef = useRef(null);
   const lastRef = useRef(null);
-  const playerRef = useRef({ row: PLAYER_ROW_START, col: 4 });
+  const playerRef = useRef(createInitialPlayerPosition());
   const phaseRef = useRef('playing');
 
   // Update phase ref
@@ -72,10 +49,12 @@ export default function Bonus() {
     if (!m) return;
     e.preventDefault();
     setPlayerPos((p) => {
-      const nr = Math.max(0, Math.min(ROWS - 1, p.row + m.row));
-      const nc = Math.max(0, Math.min(COLS - 1, p.col + m.col));
-      playerRef.current = { row: nr, col: nc };
-      return { row: nr, col: nc };
+      const nextPosition = clampPlayerPosition({
+        row: p.row + m.row,
+        col: p.col + m.col,
+      });
+      playerRef.current = nextPosition;
+      return nextPosition;
     });
   }, []);
 
@@ -100,8 +79,8 @@ export default function Bonus() {
         prev.map((car) => {
           let nt = car.t + car.speed * dt;
           let nc = car.col + car.dir * car.speed * dt;
-          if (nc < -1) nc = COLS + 0.5;
-          if (nc > COLS + 0.5) nc = -1;
+          if (nc < -1) nc = BONUS_COLS + 0.5;
+          if (nc > BONUS_COLS + 0.5) nc = -1;
           return { ...car, col: nc, t: nt };
         })
       );
@@ -121,7 +100,7 @@ export default function Bonus() {
               setPhase('dead');
             } else {
               // Respawn
-              const startPos = { row: PLAYER_ROW_START, col: 4 };
+              const startPos = createInitialPlayerPosition();
               setPlayerPos(startPos);
               playerRef.current = startPos;
             }
@@ -132,7 +111,7 @@ export default function Bonus() {
       });
 
       // Win check
-      if (p.row === GOAL_ROW) {
+      if (p.row === BONUS_GOAL_ROW) {
         phaseRef.current = 'won';
         setPhase('won');
         return;
@@ -148,22 +127,26 @@ export default function Bonus() {
   const handleFinish = async (won) => {
     if (submitted) return;
     setSubmitted(true);
-    const bonus = won ? 2 : 0;
+    const bonus = won ? BONUS_WIN_SCORE : 0;
     dispatch({ type: 'SET_BONUS_SCORE', payload: bonus });
     dispatch({ type: 'CALC_TOTAL' });
     try {
-      await submitBonusResult(sessionId, { teamId, completed: won });
-    } catch {}
+      await submitBonusResult(sessionId, { teamId: team.id, completed: won });
+    } catch {
+      // Demo mode keeps the game flowing without backend submission.
+    }
     dispatch({ type: 'SET_SCREEN', payload: 'results' });
   };
 
   const moveBtn = (dr, dc) => {
     if (phaseRef.current !== 'playing') return;
     setPlayerPos((p) => {
-      const nr = Math.max(0, Math.min(ROWS - 1, p.row + dr));
-      const nc = Math.max(0, Math.min(COLS - 1, p.col + dc));
-      playerRef.current = { row: nr, col: nc };
-      return { row: nr, col: nc };
+      const nextPosition = clampPlayerPosition({
+        row: p.row + dr,
+        col: p.col + dc,
+      });
+      playerRef.current = nextPosition;
+      return nextPosition;
     });
   };
 
@@ -196,10 +179,10 @@ export default function Bonus() {
         <div className="bonus-game-wrap">
           <div
             className="bonus-grid"
-            style={{ width: COLS * cellSize, height: ROWS * cellSize, position: 'relative' }}
+            style={{ width: BONUS_COLS * cellSize, height: BONUS_ROWS * cellSize, position: 'relative' }}
           >
             {/* Lane backgrounds */}
-            {LANE_CONFIG.map((lane, row) => (
+            {BONUS_LANE_CONFIG.map((lane, row) => (
               <div
                 key={row}
                 className={`bonus-lane ${lane.type}`}

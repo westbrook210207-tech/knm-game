@@ -1,0 +1,7 @@
+.DS_Store
+.vercel/
+
+intern-game-src/dist/
+intern-game-src/node_modules/
+intern-game-src/.DS_Store
+intern-game-src/src/.DS_Store
