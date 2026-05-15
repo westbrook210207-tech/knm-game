@@ -30,7 +30,7 @@
 html, body, #root {
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 body {
@@ -43,10 +43,10 @@ body {
 
 .screen {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
   position: relative;
 }
 
@@ -289,9 +289,10 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1.5rem;
   padding: 2rem;
+  overflow-y: auto;
 }
 
 .route-shell__hero,
@@ -361,6 +362,293 @@ body {
   text-transform: uppercase;
 }
 
+.route-error-text {
+  color: var(--accent-red);
+  margin-top: 0.5rem;
+}
+
+.route-phase-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.route-phase-button {
+  min-width: 120px;
+}
+
+.route-phase-help,
+.route-phase-success {
+  margin-top: 0.85rem;
+}
+
+.route-phase-success {
+  color: var(--accent-green);
+}
+
+.route-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.route-form__group {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.route-form__group span {
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.route-input {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  padding: 0.8rem 0.9rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+}
+
+.route-input:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  box-shadow: var(--shadow-glow);
+}
+
+.route-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.route-muted-text {
+  color: var(--text-secondary);
+  margin-top: 0.6rem;
+}
+
+.route-status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  padding: 0.2rem 0.65rem;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.route-status-pill--success {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.route-status-pill--warning {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+}
+
+.route-status-pill--danger {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+.route-session-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.route-session-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.route-session-row strong {
+  color: var(--accent-yellow);
+}
+
+.route-round1-card {
+  min-height: 0;
+}
+
+.route-round1-card--wide {
+  grid-column: 1 / -1;
+}
+
+.route-round1-question {
+  margin-top: 0.8rem;
+  font-size: 1.15rem;
+  line-height: 1.7;
+}
+
+.route-round1-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.route-round1-option {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.route-round1-option--correct {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 18px rgba(46, 204, 113, 0.18);
+}
+
+.route-round1-list {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.route-round1-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.route-inline-actions--chips {
+  gap: 0.55rem;
+}
+
+.route-chip-button {
+  min-width: 104px;
+}
+
+.team-live {
+  background:
+    radial-gradient(circle at top, rgba(30, 136, 229, 0.12), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(245, 197, 24, 0.12), transparent 25%),
+    var(--bg-dark);
+}
+
+.team-live__hud {
+  position: relative;
+  z-index: 2;
+}
+
+.team-live__main {
+  position: relative;
+  z-index: 1;
+  padding: 1rem 1.5rem 0.75rem;
+}
+
+.team-live__boss-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.team-live__question-card {
+  background: rgba(18, 18, 26, 0.94);
+  border: 2px solid rgba(245, 197, 24, 0.18);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+}
+
+.team-live__phase-copy {
+  font-size: 0.95rem;
+}
+
+.team-live__score-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.team-live__options {
+  margin-top: 0.25rem;
+}
+
+.team-live__option strong {
+  color: var(--accent-yellow);
+}
+
+.team-live__bet-row {
+  flex-wrap: wrap;
+}
+
+.team-live__token-bar {
+  margin-top: 0.1rem;
+}
+
+.team-live__ops-panel {
+  position: relative;
+  z-index: 2;
+  margin: 0 1.5rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(8, 8, 13, 0.92);
+  backdrop-filter: blur(8px);
+}
+
+.team-live__ops-panel summary {
+  cursor: pointer;
+  padding: 0.9rem 1rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.team-live__ops-panel[open] summary {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.team-live__ops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.route-public-auth-card {
+  width: 100%;
+  max-width: 900px;
+  margin-top: 0.25rem;
+}
+
+.route-public-auth-form {
+  margin-top: 0.85rem;
+}
+
+.route-public-auth-group {
+  max-width: 420px;
+}
+
+.route-public-auth-status {
+  margin-top: 0.85rem;
+  color: var(--accent-green);
+}
+
 .route-hub {
   padding: 2rem;
   overflow-y: auto;
@@ -407,6 +695,29 @@ body {
   .route-hub__grid,
   .route-hub__team-list {
     grid-template-columns: 1fr;
+  }
+
+  .route-session-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .route-round1-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .team-live__hud {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .team-live__main {
+    padding-inline: 1rem;
+  }
+
+  .team-live__ops-panel {
+    margin-inline: 1rem;
   }
 }
 
