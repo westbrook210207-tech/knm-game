@@ -26,15 +26,13 @@ Nói cách khác: **với scope event nhỏ hiện tại, đích thực dụng h
 - HUD
 - Timer presentation
 - Team-side Round 2 profile layout
-- Bonus mini-game Cross the Road
 - Results screen / podium cảm xúc
 
 ### Chỉ dùng như prototype, không dùng làm logic thật
 
-- Local screen switch `lobby -> round1 -> round2 -> bonus -> results`
+- Local screen switch `lobby -> round1 -> round2 -> results`
 - Local scoring cho Round 1
 - Local self-submit SWOT cho Round 2
-- Local bonus completion tự cộng điểm
 - Control panel local như công cụ demo
 
 ---
@@ -102,7 +100,6 @@ Nói cách khác: **với scope event nhỏ hiện tại, đích thực dụng h
   - phase control
   - answer marking
   - pitch progression
-  - bonus completion update
 - `/presenter`:
   - fullscreen classroom/projector mode
 - `/team/:teamId`:
@@ -110,7 +107,7 @@ Nói cách khác: **với scope event nhỏ hiện tại, đích thực dụng h
   - có thể mở trên nhiều máy
   - chỉ 1 máy chính được thao tác gameplay
   - team-specific state
-  - betting / case reading / bonus play
+  - betting / case reading
 - `/judge/:judgeId`:
   - judge login
   - score submission screen
@@ -261,19 +258,18 @@ Việc làm:
 
 ---
 
-## Phase F — Implement Bonus + Results theo GDD
+## Phase F — Implement Results / Closing Flow
 
 Mục tiêu:
-- Gắn mini-game hiện có vào shared architecture
+- Hoàn tất màn kết quả cuối và flow khép vòng event
 
 Việc làm:
-- Team view:
-  - chơi Cross the Road
-- Admin/backend:
-  - update leaderboard +2 khi đội pass
 - Presenter:
-  - hiển thị phase bonus
   - hiện kết quả cuối / podium top 3
+- Admin/backend:
+  - chốt phase `results`
+  - publish leaderboard cuối
+  - reset event an toàn khi cần
 
 ---
 
@@ -289,7 +285,7 @@ Việc làm:
 ### Nên làm sau
 
 1. Judge route hoàn chỉnh
-2. Bonus integration
+2. Results / closing flow
 3. Podium polish / hiệu ứng lớp học
 4. Multi-device niceties beyond primary-controller policy
 
@@ -306,7 +302,7 @@ Việc làm:
 | Phase C3 — Realtime subscriptions theo role | High | Dễ phát sinh race condition, permission mismatch, 2 máy cùng thao tác, lag hoặc state lệch giữa admin/presenter/team/judge |
 | Phase D — Implement Round 1 theo GDD | Medium | Flow rõ nhưng có nhiều state transition và cần presenter/admin/team sync ổn định để không vỡ nhịp lớp học |
 | Phase E — Implement Round 2 theo GDD | High | Đây là flow nghiệp vụ phức tạp nhất: active team, presenter focus, 3 judge submit, admin override, publish result |
-| Phase F — Implement Bonus + Results theo GDD | Medium | Bonus ít critical hơn Round 1/2 nhưng integration point với leaderboard và presenter vẫn cần rõ để tránh state lệch |
+| Phase F — Implement Results / Closing Flow | Medium | Không còn bonus, nhưng flow công bố kết quả cuối, podium, và reset event vẫn cần rõ để tránh state lệch |
 
 ### Risk interpretation
 
@@ -364,4 +360,4 @@ Sau đó:
 - `004-shared-game-state-and-auth`
 - `005-round1-admin-marking`
 - `006-round2-judge-flow`
-- `007-bonus-results-integration`
+- `007-results-closing-flow`

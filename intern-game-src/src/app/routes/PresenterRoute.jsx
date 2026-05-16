@@ -1,6 +1,7 @@
 import RoleShell from '../layouts/RoleShell';
 import PresenterRound1Board from '../../components/PresenterRound1Board';
-import SharedPhaseCard from '../../components/SharedPhaseCard';
+import PresenterRound2Board from '../../components/PresenterRound2Board';
+import PresenterResultsBoard from '../../components/PresenterResultsBoard';
 import { useSupabasePhase } from '../../hooks/useSupabasePhase';
 
 export default function PresenterRoute() {
@@ -10,19 +11,27 @@ export default function PresenterRoute() {
     <RoleShell
       eyebrow="MÀN HÌNH TRÌNH CHIẾU"
       title="PRESENTER"
-      subtitle="Màn hình máy chiếu cho classroom mode. Route này chỉ đọc shared game state và luôn bám theo phase chung."
+      subtitle="Màn hình public/read-only cho máy chiếu lớp học. Không cần đăng nhập và luôn bám theo phase chung của game."
       badge="Presenter"
     >
       <div className="route-info-grid">
-        <SharedPhaseCard roleLabel="presenter" phaseState={phaseState} />
-        <PresenterRound1Board phase={phaseState.phase} />
+        {phaseState.phase.current_phase === 'results' ? (
+          <PresenterResultsBoard phase={phaseState.phase} />
+        ) : phaseState.phase.current_phase === 'round2' ? (
+          <PresenterRound2Board phase={phaseState.phase} />
+        ) : (
+          <PresenterRound1Board phase={phaseState.phase} />
+        )}
         <div className="route-info-card">
-          <h2>Chế Độ Presenter</h2>
-          <p>Sẽ hiển thị countdown, đáp án, đội đang active, leaderboard và podium khi các phase sau được nối vào.</p>
-        </div>
-        <div className="route-info-card">
-          <h2>Hiện Tại</h2>
-          <p>Presenter đã đọc được phase dùng chung theo realtime, nên có thể dùng làm màn hình classroom nền ngay từ phase 004.</p>
+          <h2>Chế Độ Trình Chiếu</h2>
+          <p>
+            Route này chỉ để chiếu cho cả lớp: countdown, câu hỏi, tình huống đang active,
+            tiến độ BGK và leaderboard. Presenter không có quyền mutate dữ liệu.
+          </p>
+          <p className="route-muted-text">
+            Có thể mở trực tiếp bằng link `/presenter` trên màn hình máy chiếu mà không cần
+            đăng nhập.
+          </p>
         </div>
       </div>
     </RoleShell>

@@ -5,13 +5,12 @@ const SCREEN_LABELS = {
   lobby: 'TIỀN SẢNH',
   round1: 'VÒNG 1 — NGÂN SÁCH NHÂN SỰ',
   round2: 'VÒNG 2 — HỌP KHẨN VỚI SẾP',
-  bonus: 'BONUS — VƯỢT ĐƯỜNG VỀ NHÀ',
   results: 'KẾT QUẢ',
 };
 
 export default function HUD() {
   const { state } = useGame();
-  const { screen, team, round1, round2, bonus } = state;
+  const { screen, team, round1, round2 } = state;
 
   return (
     <div className="hud">
@@ -39,8 +38,6 @@ export default function HUD() {
           <span className="hud-score-item" title="Vòng 1">V1: <b>{round1.score}</b></span>
           <span className="hud-score-sep">|</span>
           <span className="hud-score-item" title="Vòng 2">V2: <b>{round2.score}</b></span>
-          <span className="hud-score-sep">|</span>
-          <span className="hud-score-item" title="Bonus">B: <b>{bonus.score}</b></span>
         </div>
       </div>
     </div>

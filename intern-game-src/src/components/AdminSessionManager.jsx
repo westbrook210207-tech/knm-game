@@ -9,7 +9,7 @@ export default function AdminSessionManager({
   return (
     <div className="route-info-card">
       <h2>Quản Lý Phiên Team</h2>
-      <p>Admin có thể xem và revoke team session nếu vào nhầm máy hoặc cần reset quyền điều khiển.</p>
+      <p>Mỗi đội chỉ có một phiên active tại một thời điểm. Đăng nhập mới sẽ thay thế phiên cũ, và admin vẫn có thể thu hồi thủ công khi cần.</p>
 
       <div className="route-inline-actions">
         <button className="btn btn-ghost" type="button" onClick={onRefresh} disabled={loading}>
@@ -27,8 +27,7 @@ export default function AdminSessionManager({
                 </strong>
                 <p>{session.device_label || 'không-rõ-thiết-bị'}</p>
                 <p>
-                  {session.is_primary ? 'máy-chính' : 'máy-phụ'} /{' '}
-                  {session.can_control ? 'được-điều-khiển' : 'chỉ-được-xem'} / {session.status}
+                  {session.status === 'active' ? 'đang-điều-khiển' : 'đã-bị-thay-thế'} / {session.status}
                 </p>
               </div>
 

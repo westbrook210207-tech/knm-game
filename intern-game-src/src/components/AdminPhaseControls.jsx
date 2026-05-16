@@ -6,7 +6,7 @@ import {
 } from '../lib/supabase/gameState';
 import { getSupabaseEnv } from '../lib/supabase/env';
 
-export default function AdminPhaseControls({ phase }) {
+export default function AdminPhaseControls({ phase, summary, onChanged }) {
   const { isConfigured } = getSupabaseEnv();
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -26,8 +26,11 @@ export default function AdminPhaseControls({ phase }) {
 
         await updateSharedGamePhase(nextPhase, {
           label: getPhaseLabel(nextPhase),
-          source: 'admin-shell',
+          round: nextPhase,
+          stage: nextPhase === 'paused' ? 'paused' : 'idle',
+          source: 'admin-control-room',
         });
+        await onChanged?.();
 
         setMessage(`Đã gửi update shared phase sang ${getPhaseLabel(nextPhase)}.`);
       } catch (nextError) {
@@ -40,6 +43,14 @@ export default function AdminPhaseControls({ phase }) {
     <div className="route-info-card">
       <h2>Điều Khiển Phase</h2>
       <p>Phase hiện tại: {getPhaseLabel(phase.current_phase)}</p>
+      {summary ? (
+        <p className="route-muted-text">
+          Stage: {summary.currentStage || 'idle'} · Câu hiện tại:{' '}
+          {typeof summary.currentQuestionIndex === 'number'
+            ? `Q${summary.currentQuestionIndex + 1}`
+            : 'chưa chọn'}
+        </p>
+      ) : null}
       <div className="route-phase-list">
         {SHARED_PHASE_OPTIONS.map((phaseOption) => (
           <button
@@ -58,7 +69,7 @@ export default function AdminPhaseControls({ phase }) {
         ))}
       </div>
       <p className="route-phase-help">
-        Đây là bước đầu của phase `004`: nếu schema đã được apply và admin auth hợp lệ, presenter và team sẽ nhảy phase theo realtime.
+        Dùng khối này để chuyển phase cấp cao cho toàn hệ thống. Các stage chi tiết của Round 1 vẫn được điều phối ở panel riêng bên dưới.
       </p>
       {message ? <p className="route-phase-success">{message}</p> : null}
       {error ? <p className="route-error-text">{error}</p> : null}

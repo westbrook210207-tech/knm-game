@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import FocusModal from './FocusModal';
 import Timer from './Timer';
 import Typewriter from './Typewriter';
 import { ROUND1_QUESTIONS } from '../data/round1Questions';
 import {
-  getTeamRound1Snapshot,
-  LIVE_REFRESH_INTERVAL_MS,
+  getTeamLiveSnapshot,
+  getSnapshotRefreshInterval,
 } from '../lib/game-backend';
 import {
   getRound1LiveState,
@@ -15,8 +16,8 @@ import {
 function getTeamStageHelp(stage, canControl) {
   if (stage === ROUND1_LIVE_STAGES.BETTING) {
     return canControl
-      ? 'Máy primary có thể đặt hoặc đổi bet cho đến khi admin khóa cược.'
-      : 'Máy này đang ở chế độ read-only. Chỉ primary controller mới được đặt cược.';
+      ? 'Phiên đang điều khiển có thể đặt hoặc đổi cược cho đến khi hết giờ hoặc admin khóa cược.'
+      : 'Phiên này không còn quyền điều khiển. Hãy giành lại quyền hoặc đăng nhập ở tab đang active.';
   }
 
   if (stage === ROUND1_LIVE_STAGES.LOCKED) {
@@ -34,11 +35,46 @@ function getTeamStageHelp(stage, canControl) {
   return 'Admin chưa mở live Round 1.';
 }
 
+function getStagePill(stage) {
+  if (stage === ROUND1_LIVE_STAGES.BETTING) {
+    return {
+      label: 'Đang đặt cược',
+      tone: 'route-status-pill route-status-pill--warning',
+    };
+  }
+
+  if (stage === ROUND1_LIVE_STAGES.LOCKED) {
+    return {
+      label: 'Đã khóa cược',
+      tone: 'route-status-pill route-status-pill--danger',
+    };
+  }
+
+  if (stage === ROUND1_LIVE_STAGES.REVEAL) {
+    return {
+      label: 'Đang công bố',
+      tone: 'route-status-pill route-status-pill--success',
+    };
+  }
+
+  if (stage === ROUND1_LIVE_STAGES.COMPLETE) {
+    return {
+      label: 'Đã kết thúc',
+      tone: 'route-status-pill',
+    };
+  }
+
+  return {
+    label: 'Chờ admin mở vòng',
+    tone: 'route-status-pill',
+  };
+}
+
 function getBossMessage(stage, questionNumber, canControl) {
   if (stage === ROUND1_LIVE_STAGES.BETTING) {
     return canControl
       ? `Câu ${questionNumber} đã mở. Hãy chốt mức cược trước khi tôi khóa sổ.`
-      : `Câu ${questionNumber} đã mở, nhưng máy này chỉ được xem. Máy chính của đội sẽ chốt cược.`;
+      : `Câu ${questionNumber} đã mở, nhưng phiên này đã bị thay thế. Tab đang active của đội sẽ là nơi chốt cược.`;
   }
 
   if (stage === ROUND1_LIVE_STAGES.LOCKED) {
@@ -60,8 +96,7 @@ export default function TeamRound1Panel({
   team,
   phase,
   session,
-  deviceFingerprint,
-  profileTeamId,
+  sessionToken,
 }) {
   const liveState = getRound1LiveState(phase);
   const question =
@@ -74,29 +109,27 @@ export default function TeamRound1Panel({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
 
   const canControl = Boolean(session?.can_control);
   const questionNumber =
     typeof liveState.questionIndex === 'number' ? liveState.questionIndex + 1 : null;
   const bossMessage = getBossMessage(liveState.stage, questionNumber ?? '?', canControl);
-  const timerSeconds =
-    liveState.stage === ROUND1_LIVE_STAGES.BETTING
-      ? 15
-      : liveState.stage === ROUND1_LIVE_STAGES.LOCKED
-        ? 5
-        : 0;
+  const timerSeconds = liveState.countdownSeconds ?? 0;
+  const pollIntervalMs = getSnapshotRefreshInterval(phase);
+  const stagePill = getStagePill(liveState.stage);
 
   useEffect(() => {
     let alive = true;
 
     async function load() {
-      if (!profileTeamId || !liveState.isRound1) return;
+      if (!sessionToken || !team?.id || !liveState.isRound1) return;
 
       try {
         setLoading(true);
-        const snapshot = await getTeamRound1Snapshot({
-          teamProfileId: profileTeamId,
-          questionIndex: liveState.questionIndex,
+        const snapshot = await getTeamLiveSnapshot({
+          teamCode: team?.id,
+          sessionToken,
         });
 
         if (!alive) return;
@@ -117,17 +150,19 @@ export default function TeamRound1Panel({
     void load();
     const intervalId = window.setInterval(() => {
       void load();
-    }, LIVE_REFRESH_INTERVAL_MS);
+    }, pollIntervalMs);
 
     return () => {
       alive = false;
       window.clearInterval(intervalId);
     };
   }, [
+    sessionToken,
     liveState.isRound1,
     liveState.questionIndex,
     liveState.stage,
-    profileTeamId,
+    pollIntervalMs,
+    team?.id,
   ]);
 
   async function handleSubmitBet() {
@@ -143,11 +178,11 @@ export default function TeamRound1Panel({
       await submitRound1Bet({
         questionIndex: liveState.questionIndex,
         betAmount,
-        deviceFingerprint,
+        sessionToken,
       });
-      const snapshot = await getTeamRound1Snapshot({
-        teamProfileId: profileTeamId,
-        questionIndex: liveState.questionIndex,
+      const snapshot = await getTeamLiveSnapshot({
+        teamCode: team?.id,
+        sessionToken,
       });
       setBet(snapshot.bet || null);
       setScore(snapshot.score || null);
@@ -202,13 +237,15 @@ export default function TeamRound1Panel({
                 : 'route-status-pill route-status-pill--warning'
             }
           >
-            {canControl ? 'Máy chính' : 'Chế độ xem'}
+            {canControl ? 'Đang điều khiển' : 'Phiên không điều khiển'}
           </span>
+          <span className={stagePill.tone}>{stagePill.label}</span>
           {timerSeconds > 0 ? (
             <div style={{ marginLeft: 'auto' }}>
               <Timer
-                key={`${liveState.stage}-${questionNumber}`}
+                key={`${liveState.stage}-${questionNumber}-${liveState.countdownEndsAt || 'no-deadline'}`}
                 seconds={timerSeconds}
+                endsAt={liveState.countdownEndsAt}
                 paused={false}
                 onExpire={() => {}}
               />
@@ -219,8 +256,27 @@ export default function TeamRound1Panel({
         <p className="r1-phase-label team-live__phase-copy">
           {getTeamStageHelp(liveState.stage, canControl)}
         </p>
+        {liveState.stage === ROUND1_LIVE_STAGES.BETTING ? (
+          <p className="team-live__sync-note">
+            Hết giờ, hệ thống sẽ tự khóa cược và đội chưa cược sẽ tự bị gán 1 token.
+          </p>
+        ) : null}
+        {question ? (
+          <div className="route-inline-actions route-inline-actions--compact">
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => setIsZoomOpen(true)}
+            >
+              Phóng to câu hỏi
+            </button>
+          </div>
+        ) : null}
 
         <div className="team-live__score-strip">
+          {typeof score?.rank === 'number' ? (
+            <div className="token-badge token-badge--rank"># {score.rank}</div>
+          ) : null}
           <div className="token-badge">🪙 {score?.round1_tokens ?? 10} token</div>
           <div className="token-badge">🏆 {score?.round1_score ?? 3} điểm Round 1</div>
           {bet ? (
@@ -302,6 +358,27 @@ export default function TeamRound1Panel({
         ))}
         <span className="r1-token-count">{score?.round1_tokens ?? 10} / 20</span>
       </div>
+
+      <FocusModal
+        open={isZoomOpen}
+        title={questionNumber ? `Câu ${questionNumber}` : 'Round 1'}
+        subtitle={`${team?.icon || '🏢'} ${team?.name || 'Đội'}`}
+        onClose={() => setIsZoomOpen(false)}
+      >
+        {question ? (
+          <div className="route-zoom-copy">
+            <p className="route-zoom-question">{question.text}</p>
+            <div className="route-zoom-options">
+              {question.options.map((option) => (
+                <div className="route-zoom-option" key={option.label}>
+                  <strong>{option.label}</strong>
+                  <span>{option.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </FocusModal>
     </div>
   );
 }

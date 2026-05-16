@@ -1,54 +1,66 @@
 import { requireSupabaseClient } from './client';
-import { getCurrentUser } from './auth';
+import { getSupabaseEnv } from './env';
 
-export async function getMyTeamSessions(teamId) {
-  const supabase = requireSupabaseClient();
-  const user = await getCurrentUser();
-
-  if (!user) return [];
-
-  const { data, error } = await supabase
-    .from('team_sessions')
-    .select('*')
-    .eq('team_id', teamId)
-    .eq('auth_user_id', user.id)
-    .order('created_at', { ascending: true });
-
-  if (error) throw error;
-  return data || [];
+function requireEventSlug() {
+  const { eventSlug } = getSupabaseEnv();
+  return eventSlug;
 }
 
-export async function getActiveTeamSession(teamId) {
-  const sessions = await getMyTeamSessions(teamId);
-  return sessions.find((session) => session.status === 'active') || null;
-}
-
-export async function getCurrentDeviceTeamSession(teamId, deviceFingerprint) {
+export async function joinTeamSession({
+  teamCode,
+  password,
+  sessionToken,
+  deviceLabel,
+}) {
   const supabase = requireSupabaseClient();
-  const user = await getCurrentUser();
-
-  if (!user || !deviceFingerprint) return null;
-
-  const { data, error } = await supabase
-    .from('team_sessions')
-    .select('*')
-    .eq('team_id', teamId)
-    .eq('auth_user_id', user.id)
-    .eq('device_fingerprint', deviceFingerprint)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('join_team_session', {
+    target_event_slug: requireEventSlug(),
+    target_team_code: teamCode,
+    target_password: password,
+    target_session_token: sessionToken,
+    device_label: deviceLabel,
+  });
 
   if (error) throw error;
   return data;
 }
 
-export async function claimTeamSession({ teamId, deviceLabel, deviceFingerprint }) {
+export async function leaveTeamSession(sessionToken) {
   const supabase = requireSupabaseClient();
-  const { data, error } = await supabase.rpc('claim_team_session', {
-    target_team_code: teamId,
+  const { data, error } = await supabase.rpc('leave_team_session', {
+    target_event_slug: requireEventSlug(),
+    target_session_token: sessionToken,
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function joinJudgeSession({
+  judgeCode,
+  password,
+  sessionToken,
+  deviceLabel,
+}) {
+  const supabase = requireSupabaseClient();
+  const { data, error } = await supabase.rpc('join_judge_session', {
+    target_event_slug: requireEventSlug(),
+    target_judge_code: judgeCode,
+    target_password: password,
+    target_session_token: sessionToken,
     device_label: deviceLabel,
-    device_fingerprint: deviceFingerprint,
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function leaveJudgeSession({ judgeCode, sessionToken }) {
+  const supabase = requireSupabaseClient();
+  const { data, error } = await supabase.rpc('leave_judge_session', {
+    target_event_slug: requireEventSlug(),
+    target_judge_code: judgeCode,
+    target_session_token: sessionToken,
   });
 
   if (error) throw error;
@@ -61,6 +73,7 @@ export async function revokeTeamSession(sessionId) {
     .from('team_sessions')
     .update({
       status: 'revoked',
+      is_primary: false,
       can_control: false,
       revoked_at: new Date().toISOString(),
     })
@@ -74,39 +87,8 @@ export async function revokeTeamSession(sessionId) {
 
 export async function listAdminTeamSessions() {
   const supabase = requireSupabaseClient();
-  const { data, error } = await supabase
-    .from('team_sessions')
-    .select(
-      `
-        *,
-        teams (
-          team_code,
-          display_name
-        )
-      `
-    )
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('get_admin_team_sessions_snapshot');
 
   if (error) throw error;
   return data || [];
-}
-
-export function subscribeToTeamSessions(onChange) {
-  const supabase = requireSupabaseClient();
-  const channel = supabase
-    .channel(`team_sessions:${Date.now()}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'team_sessions',
-      },
-      onChange
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
 }

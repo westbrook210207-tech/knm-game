@@ -1,4 +1,4 @@
-const DEVICE_FINGERPRINT_KEY = 'phase004-device-fingerprint';
+const DEVICE_FINGERPRINT_KEY = 'phase005-team-session-key';
 
 function createFingerprint() {
   return window.crypto?.randomUUID?.() || `device-${Date.now()}`;
@@ -7,11 +7,11 @@ function createFingerprint() {
 export function getDeviceFingerprint() {
   if (typeof window === 'undefined') return 'server-render';
 
-  const stored = window.localStorage.getItem(DEVICE_FINGERPRINT_KEY);
+  const stored = window.sessionStorage.getItem(DEVICE_FINGERPRINT_KEY);
   if (stored) return stored;
 
   const next = createFingerprint();
-  window.localStorage.setItem(DEVICE_FINGERPRINT_KEY, next);
+  window.sessionStorage.setItem(DEVICE_FINGERPRINT_KEY, next);
   return next;
 }
 
@@ -19,7 +19,7 @@ export function resetDeviceFingerprint() {
   if (typeof window === 'undefined') return 'server-render';
 
   const next = createFingerprint();
-  window.localStorage.setItem(DEVICE_FINGERPRINT_KEY, next);
+  window.sessionStorage.setItem(DEVICE_FINGERPRINT_KEY, next);
   return next;
 }
 

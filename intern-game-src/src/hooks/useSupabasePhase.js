@@ -4,7 +4,7 @@ import {
 } from '../lib/supabase/gameState';
 import {
   getSharedPhaseSnapshot,
-  LIVE_REFRESH_INTERVAL_MS,
+  getSnapshotRefreshInterval,
 } from '../lib/game-backend';
 import { getSupabaseEnv } from '../lib/supabase/env';
 
@@ -51,6 +51,7 @@ export function useSupabasePhase() {
   const [phase, setPhase] = useState(getDefaultSharedPhase());
   const [loading, setLoading] = useState(getSupabaseEnv().isConfigured);
   const [error, setError] = useState('');
+  const pollIntervalMs = getSnapshotRefreshInterval(phase);
 
   useEffect(() => {
     const { isConfigured } = getSupabaseEnv();
@@ -73,7 +74,12 @@ export function useSupabasePhase() {
         const data = await getSharedPhaseSnapshot();
         if (!alive) return;
 
-        setPhase((previousPhase) => normalizeSharedPhase(data, previousPhase));
+        setPhase((previousPhase) =>
+          normalizeSharedPhase(
+            data?.phase ? data.phase : data,
+            previousPhase
+          )
+        );
         setError('');
       } catch (err) {
         if (!alive) return;
@@ -94,7 +100,7 @@ export function useSupabasePhase() {
 
       pollId = window.setInterval(() => {
         void refreshPhase({ silent: true });
-      }, LIVE_REFRESH_INTERVAL_MS);
+      }, pollIntervalMs);
 
       window.addEventListener('focus', handleVisibilityRefresh);
       document.addEventListener('visibilitychange', handleVisibilityRefresh);
@@ -108,7 +114,7 @@ export function useSupabasePhase() {
       window.removeEventListener('focus', handleVisibilityRefresh);
       document.removeEventListener('visibilitychange', handleVisibilityRefresh);
     };
-  }, []);
+  }, [pollIntervalMs]);
 
   return { phase, loading, error, isConfigured: getSupabaseEnv().isConfigured };
 }

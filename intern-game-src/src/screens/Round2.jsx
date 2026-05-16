@@ -38,8 +38,8 @@ export default function Round2() {
     dispatch({ type: 'SET_ROUND2_SCORE', payload: 0 });
   };
 
-  const goBonus = () => {
-    dispatch({ type: 'SET_SCREEN', payload: 'bonus' });
+  const goResults = () => {
+    dispatch({ type: 'SET_SCREEN', payload: 'results' });
   };
 
   return (
@@ -147,8 +147,8 @@ export default function Round2() {
             <div className="r2-submitted slide-up">
               <div className="r2-submitted-title">📋 ĐÃ NỘP — Chờ ban giám khảo chấm!</div>
               <div className="r2-submitted-sub">Đây là đáp án tham khảo của BGK</div>
-              <button className="btn btn-primary" onClick={goBonus} style={{ marginTop: '0.8rem' }}>
-                🎮 Tiếp tục: Vòng Bonus →
+              <button className="btn btn-primary" onClick={goResults} style={{ marginTop: '0.8rem' }}>
+                🏁 Tiếp tục: Xem kết quả →
               </button>
             </div>
           )}

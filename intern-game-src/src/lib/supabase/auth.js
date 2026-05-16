@@ -3,6 +3,8 @@ import { requireSupabaseClient } from './client';
 const SEEDED_LOGIN_EMAILS = {
   admin: 'phase004admin@mailinator.com',
   finance: 'phase004-team-finance@mailinator.com',
+  business: 'phase005-team-business@mailinator.com',
+  marketing: 'phase005-team-marketing@mailinator.com',
   'judge-1': 'phase004-judge-1@mailinator.com',
   'judge-2': 'phase004-judge-2@mailinator.com',
   'judge-3': 'phase004-judge-3@mailinator.com',
@@ -50,7 +52,7 @@ export async function signInWithAccount({ identifier, password }) {
 
   if (!email) {
     throw new Error(
-      'Tài khoản này chưa được seed cho phase 004. Hãy dùng đúng mã `admin`, `finance`, hoặc `judge-1` đến `judge-3`.'
+      'Tài khoản này chưa được seed cho phase 004/005. Hãy dùng đúng mã `admin`, `finance`, `business`, `marketing`, hoặc `judge-1` đến `judge-3`.'
     );
   }
 

@@ -5,9 +5,9 @@ import './Results.css';
 
 export default function Results() {
   const { state, dispatch } = useGame();
-  const { team, round1, round2, bonus } = state;
+  const { team, round1, round2 } = state;
   const r1 = round1.score || tokensToPoints(round1.tokens);
-  const total = calculateTotalScore(r1, round2.score, bonus.score);
+  const total = calculateTotalScore(r1, round2.score);
 
   const verdict = total >= 9
     ? { label: 'THĂNG CHỨC! 🎉', cls: 'promoted', msg: 'Chúc mừng! Bạn đã chứng minh được năng lực. Tập Đoàn XYZ chính thức tuyển dụng phòng ban của bạn!' }
@@ -16,7 +16,6 @@ export default function Results() {
   const rows = [
     { label: 'Vòng 1 — Ngân sách nhân sự', score: r1, max: 5, icon: '🪙' },
     { label: 'Vòng 2 — Họp khẩn với sếp', score: round2.score, max: 5, icon: '🗂️' },
-    { label: 'Bonus — Vượt đường về nhà', score: bonus.score, max: 2, icon: '🎮' },
   ];
 
   return (
@@ -53,7 +52,7 @@ export default function Results() {
 
           <div className="results-total-row">
             <span>TỔNG ĐIỂM</span>
-            <span className="results-total-num">{total} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>/ 12</span></span>
+            <span className="results-total-num">{total} <span style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>/ 10</span></span>
           </div>
         </div>
 

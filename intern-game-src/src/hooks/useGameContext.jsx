@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
-import { getInitialBonusState } from '../game/bonus';
 import { getInitialRound1State } from '../game/round1';
 import { getInitialRound2State } from '../game/round2';
 import { calculateTotalScore } from '../game/scoring';
@@ -21,18 +20,13 @@ const baseState = {
   },
   round1: getInitialRound1State(),
   round2: getInitialRound2State(),
-  bonus: getInitialBonusState(),
   results: {
     totalScore: 0,
   },
 };
 
 function computeTotalScore(state) {
-  return calculateTotalScore(
-    state.round1.score,
-    state.round2.score,
-    state.bonus.score
-  );
+  return calculateTotalScore(state.round1.score, state.round2.score);
 }
 
 function createState(overrides = {}) {
@@ -42,7 +36,6 @@ function createState(overrides = {}) {
     team: { ...baseState.team, ...(overrides.team || {}) },
     round1: { ...getInitialRound1State(), ...(overrides.round1 || {}) },
     round2: { ...getInitialRound2State(), ...(overrides.round2 || {}) },
-    bonus: { ...getInitialBonusState(), ...(overrides.bonus || {}) },
     results: {
       ...baseState.results,
       ...(overrides.results || {}),
@@ -71,7 +64,6 @@ function reducer(state, action) {
         team: { id: action.payload.id, name: action.payload.name },
         round1: { ...state.round1, tokens: 10, currentQuestion: 0, score: 0 },
         round2: getInitialRound2State(),
-        bonus: getInitialBonusState(),
         results: { totalScore: 0 },
       };
     case 'UPDATE_TOKENS':
@@ -88,11 +80,6 @@ function reducer(state, action) {
       return createState({
         ...state,
         round2: { ...state.round2, score: action.payload },
-      });
-    case 'SET_BONUS_SCORE':
-      return createState({
-        ...state,
-        bonus: { ...state.bonus, score: action.payload },
       });
     case 'NEXT_QUESTION':
       return {
@@ -130,7 +117,6 @@ function addLegacyAliases(state) {
     tokens: state.round1.tokens,
     round1Score: state.round1.score,
     round2Score: state.round2.score,
-    bonusScore: state.bonus.score,
     totalScore: state.results.totalScore,
     currentQuestion: state.round1.currentQuestion,
   };

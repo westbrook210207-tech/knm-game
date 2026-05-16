@@ -10,6 +10,6 @@ export function tokensToPoints(tokens) {
   return TOKEN_CONVERSION.find((range) => tokens >= range.min && tokens <= range.max)?.points ?? 0;
 }
 
-export function calculateTotalScore(round1Score, round2Score, bonusScore) {
+export function calculateTotalScore(round1Score, round2Score, bonusScore = 0) {
   return round1Score + round2Score + bonusScore;
 }

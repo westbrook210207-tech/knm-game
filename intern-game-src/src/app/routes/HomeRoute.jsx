@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Typewriter from '../../components/Typewriter';
 import { TEAMS } from '../../data/teams';
 import { useSupabaseRoleSession } from '../../hooks/useSupabaseRoleSession';
-import { signInWithAccount, signOut } from '../../lib/supabase/auth';
+import { signOut } from '../../lib/supabase/auth';
+import { getDeviceLabel } from '../../lib/supabase/device';
+import { joinTeamSession } from '../../lib/supabase/sessions';
+import { createTeamSessionToken, storeTeamSession } from '../../lib/teamSession';
 import '../../screens/Lobby.css';
 
 function getInitialTeamSelection() {
@@ -13,6 +16,20 @@ function getInitialTeamSelection() {
   if (!teamId) return null;
 
   return TEAMS.find((team) => team.id === teamId) ?? null;
+}
+
+function getRoleRoute(profile, selectedTeamId = '') {
+  if (!profile?.role) return null;
+
+  if (profile.role === 'admin') return '/admin';
+  if (profile.role === 'judge' && profile.judge_code) {
+    return `/judge/${profile.judge_code}`;
+  }
+  if (profile.role === 'team') {
+    return selectedTeamId ? `/team/${selectedTeamId}` : '/';
+  }
+
+  return null;
 }
 
 export default function HomeRoute() {
@@ -27,6 +44,7 @@ export default function HomeRoute() {
   const activeTeamId = useMemo(() => selectedTeam?.id || '', [selectedTeam]);
   const signedIntoDifferentRole =
     authState.user && authState.profile?.role && authState.profile.role !== 'team';
+  const currentRoleRoute = getRoleRoute(authState.profile, activeTeamId);
 
   async function handleContinue() {
     if (!selectedTeam) {
@@ -34,27 +52,26 @@ export default function HomeRoute() {
       return;
     }
 
-    if (signedIntoDifferentRole) {
-      setError('Bạn đang đăng nhập bằng role khác. Hãy đăng xuất trước khi vào link của đội.');
-      return;
-    }
-
     try {
       setSubmitting(true);
       setError('');
 
-      if (!authState.user) {
-        if (!password) {
-          setError('Hãy nhập mật khẩu của phòng ban.');
-          return;
-        }
-
-        await signInWithAccount({
-          identifier: selectedTeam.id,
-          password,
-        });
+      if (!password) {
+        setError('Hãy nhập mật khẩu của phòng ban.');
+        return;
       }
 
+      const sessionToken = createTeamSessionToken();
+      await joinTeamSession({
+        teamCode: selectedTeam.id,
+        password,
+        sessionToken,
+        deviceLabel: getDeviceLabel(),
+      });
+      storeTeamSession({
+        teamCode: selectedTeam.id,
+        sessionToken,
+      });
       navigate(`/team/${selectedTeam.id}`);
     } catch (nextError) {
       setError(nextError?.message || 'Không thể đăng nhập vào phòng ban này.');
@@ -136,7 +153,7 @@ export default function HomeRoute() {
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Nhập mật khẩu"
                 autoComplete="current-password"
-                disabled={!selectedTeam || Boolean(authState.user)}
+                disabled={!selectedTeam}
               />
             </label>
 
@@ -145,15 +162,13 @@ export default function HomeRoute() {
                 className={`btn btn-primary lobby-start ${!selectedTeam ? 'disabled' : 'pulse-glow'}`}
                 type="button"
                 onClick={handleContinue}
-                disabled={!selectedTeam || submitting || authState.loading}
+                disabled={!selectedTeam || submitting}
               >
                 {submitting
-                  ? '⏳ Đang đăng nhập...'
-                  : authState.user
-                    ? `✅ Vào ${selectedTeam?.name || 'phòng ban'}`
-                    : selectedTeam
-                      ? `✅ Vào ${selectedTeam.name}`
-                      : 'Chọn phòng ban trước'}
+                  ? '⏳ Đang vào đội...'
+                  : selectedTeam
+                    ? `✅ Vào ${selectedTeam.name}`
+                    : 'Chọn phòng ban trước'}
               </button>
 
               {authState.user ? (
@@ -164,16 +179,27 @@ export default function HomeRoute() {
             </div>
           </div>
 
-          {authState.user && authState.profile?.role === 'team' ? (
-            <p className="route-public-auth-status">
-              Đã có phiên đăng nhập team. Bạn có thể vào thẳng route của phòng ban đã chọn.
-            </p>
-          ) : null}
-
           {signedIntoDifferentRole ? (
-            <p className="route-error-text">
-              Bạn đang đăng nhập bằng role `{authState.profile?.role}`. Hãy đăng xuất trước khi dùng màn public cho team.
-            </p>
+            <div className="route-info-card" style={{ marginTop: '1rem' }}>
+              <h2>Đang Ở Chế Độ Nội Bộ</h2>
+              <p className="route-muted-text">
+                Bạn đang giữ thêm role `{authState.profile?.role}` trong trình duyệt này. Điều đó không chặn việc tạo phiên team mới cho public route.
+              </p>
+              <div className="route-inline-actions">
+                {currentRoleRoute ? (
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => navigate(currentRoleRoute)}
+                  >
+                    Về đúng màn hiện tại
+                  </button>
+                ) : null}
+                <button className="btn btn-danger" type="button" onClick={handleSignOut}>
+                  Đăng xuất để vào team
+                </button>
+              </div>
+            </div>
           ) : null}
 
           {error ? <p className="route-error-text">{error}</p> : null}

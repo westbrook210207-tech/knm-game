@@ -1,54 +1,81 @@
 import { useEffect, useState } from 'react';
 import RoleShell from '../layouts/RoleShell';
 import AdminRound1Manager from '../../components/AdminRound1Manager';
+import AdminRound2Manager from '../../components/AdminRound2Manager';
+import AdminResultsPanel from '../../components/AdminResultsPanel';
 import AdminPhaseControls from '../../components/AdminPhaseControls';
 import AdminSessionManager from '../../components/AdminSessionManager';
 import RoleIdentityCard from '../../components/RoleIdentityCard';
 import RoleLoginCard from '../../components/RoleLoginCard';
-import SharedPhaseCard from '../../components/SharedPhaseCard';
-import { useSupabasePhase } from '../../hooks/useSupabasePhase';
 import { useSupabaseRoleSession } from '../../hooks/useSupabaseRoleSession';
 import { signInWithAccount, signOut } from '../../lib/supabase/auth';
 import {
-  listAdminTeamSessions,
+  getAdminControlSnapshot,
+  LIVE_REFRESH_INTERVAL_MS,
+} from '../../lib/game-backend';
+import {
   revokeTeamSession,
 } from '../../lib/supabase/sessions';
 
 export default function AdminRoute() {
-  const phaseState = useSupabasePhase();
   const authState = useSupabaseRoleSession();
   const [loginError, setLoginError] = useState('');
-  const [sessions, setSessions] = useState([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [sessionsError, setSessionsError] = useState('');
+  const [controlState, setControlState] = useState({
+    snapshot: null,
+    loading: false,
+    error: '',
+  });
   const [revokePendingId, setRevokePendingId] = useState('');
 
   const isAdmin = authState.profile?.role === 'admin';
+  const snapshot = controlState.snapshot;
+  const sessions = snapshot?.sessions || [];
+  const phase = snapshot?.phase || {
+    current_phase: 'lobby',
+    phase_payload: { label: 'Lobby' },
+    current_question_index: null,
+    phase_version: 0,
+  };
+  const summary = snapshot?.summary || null;
 
   useEffect(() => {
     if (!isAdmin) return undefined;
 
     let alive = true;
+    let intervalId = null;
 
-    async function load() {
+    async function loadSnapshot() {
       try {
-        setSessionsLoading(true);
-        setSessionsError('');
-        const nextSessions = await listAdminTeamSessions();
+        setControlState((current) => ({
+          ...current,
+          loading: true,
+          error: '',
+        }));
+        const nextSnapshot = await getAdminControlSnapshot();
         if (!alive) return;
-        setSessions(nextSessions);
+        setControlState({
+          snapshot: nextSnapshot,
+          loading: false,
+          error: '',
+        });
       } catch (error) {
         if (!alive) return;
-        setSessionsError(error?.message || 'Không tải được team sessions.');
-      } finally {
-        if (alive) setSessionsLoading(false);
+        setControlState((current) => ({
+          ...current,
+          loading: false,
+          error: error?.message || 'Không tải được admin control snapshot.',
+        }));
       }
     }
 
-    void load();
+    void loadSnapshot();
+    intervalId = window.setInterval(() => {
+      void loadSnapshot();
+    }, LIVE_REFRESH_INTERVAL_MS);
 
     return () => {
       alive = false;
+      if (intervalId) window.clearInterval(intervalId);
     };
   }, [isAdmin]);
 
@@ -65,26 +92,42 @@ export default function AdminRoute() {
     await signOut();
   }
 
-  async function handleRefreshSessions() {
+  async function handleRefreshControl() {
     try {
-      setSessionsLoading(true);
-      setSessionsError('');
-      setSessions(await listAdminTeamSessions());
+      setControlState((current) => ({
+        ...current,
+        loading: true,
+        error: '',
+      }));
+      const nextSnapshot = await getAdminControlSnapshot();
+      setControlState({
+        snapshot: nextSnapshot,
+        loading: false,
+        error: '',
+      });
     } catch (error) {
-      setSessionsError(error?.message || 'Không tải lại được team sessions.');
-    } finally {
-      setSessionsLoading(false);
+      setControlState((current) => ({
+        ...current,
+        loading: false,
+        error: error?.message || 'Không tải lại được control snapshot.',
+      }));
     }
   }
 
   async function handleRevokeSession(sessionId) {
     try {
       setRevokePendingId(sessionId);
-      setSessionsError('');
+      setControlState((current) => ({
+        ...current,
+        error: '',
+      }));
       await revokeTeamSession(sessionId);
-      await handleRefreshSessions();
+      await handleRefreshControl();
     } catch (error) {
-      setSessionsError(error?.message || 'Thu hồi session thất bại.');
+      setControlState((current) => ({
+        ...current,
+        error: error?.message || 'Thu hồi session thất bại.',
+      }));
     } finally {
       setRevokePendingId('');
     }
@@ -98,8 +141,6 @@ export default function AdminRoute() {
       badge="Admin"
     >
       <div className="route-info-grid">
-        <SharedPhaseCard roleLabel="admin" phaseState={phaseState} />
-
         {!authState.user ? (
           <RoleLoginCard
             title="Đăng Nhập Admin"
@@ -121,30 +162,119 @@ export default function AdminRoute() {
             </button>
           </div>
         ) : (
-          <>
-            <RoleIdentityCard
-              title="Danh Tính Admin"
-              user={authState.user}
-              profile={authState.profile}
-              roleHint="Sau khi auth hợp lệ, admin có thể đổi phase và quản lý team session ngay trong shell này."
-            >
-              <div className="route-inline-actions">
-                <button className="btn btn-danger" type="button" onClick={handleSignOut}>
-                  Đăng xuất
-                </button>
+          <div className="route-admin-layout">
+            <aside className="route-admin-sidebar">
+              <RoleIdentityCard
+                title="Danh Tính Admin"
+                user={authState.user}
+                profile={authState.profile}
+                roleHint="Bạn đang ở chế độ control room. Mọi mutate sẽ đi qua RPC admin và tự refetch snapshot."
+              >
+                <div className="route-inline-actions">
+                  <button className="btn btn-ghost" type="button" onClick={handleRefreshControl}>
+                    Làm mới snapshot
+                  </button>
+                  <button className="btn btn-danger" type="button" onClick={handleSignOut}>
+                    Đăng xuất
+                  </button>
+                </div>
+              </RoleIdentityCard>
+
+              <div className="route-info-card">
+                <h2>Liên Kết Điều Hướng</h2>
+                <div className="route-admin-links">
+                  <a className="route-inline-link" href="/">
+                    Sảnh công khai
+                  </a>
+                  <a className="route-inline-link" href="/presenter">
+                    Presenter
+                  </a>
+                  <a className="route-inline-link" href="/team/finance">
+                    Team mẫu
+                  </a>
+                  <a className="route-inline-link" href="/judge/judge-1">
+                    Judge 1
+                  </a>
+                </div>
               </div>
-            </RoleIdentityCard>
-            <AdminPhaseControls phase={phaseState.phase} />
-            <AdminRound1Manager phase={phaseState.phase} />
-            <AdminSessionManager
-              sessions={sessions}
-              loading={sessionsLoading}
-              error={sessionsError}
-              onRefresh={handleRefreshSessions}
-              onRevoke={handleRevokeSession}
-              revokePendingId={revokePendingId}
-            />
-          </>
+
+              <div className="route-info-card">
+                <h2>Snapshot Hệ Thống</h2>
+                <div className="route-admin-stats">
+                  <p>
+                    Phase: <strong>{phase.current_phase}</strong>
+                  </p>
+                  <p>
+                    Stage: <strong>{summary?.currentStage || 'idle'}</strong>
+                  </p>
+                  <p>
+                    Câu hiện tại:{' '}
+                    <strong>
+                      {typeof summary?.currentQuestionIndex === 'number'
+                        ? `Q${summary.currentQuestionIndex + 1}`
+                        : 'chưa chọn'}
+                    </strong>
+                  </p>
+                  <p>
+                    Phiên bản phase: <strong>{phase.phase_version ?? 0}</strong>
+                  </p>
+                  <p>
+                    Session active: <strong>{summary?.activeSessionCount ?? 0}</strong>
+                  </p>
+                  <p>
+                    Session revoked: <strong>{summary?.revokedSessionCount ?? 0}</strong>
+                  </p>
+                  <p>
+                    Bet câu hiện tại: <strong>{summary?.betCountForCurrentQuestion ?? 0}</strong>
+                  </p>
+                  <p>
+                    Đã chấm: <strong>{summary?.resolvedBetCountForCurrentQuestion ?? 0}</strong>
+                  </p>
+                </div>
+                {summary?.topTeam?.teams ? (
+                  <p className="route-muted-text">
+                    Đội dẫn đầu: {summary.topTeam.teams.icon} {summary.topTeam.teams.display_name} ·{' '}
+                    {summary.topTeam.total_score} điểm / {summary.topTeam.round1_tokens} token
+                  </p>
+                ) : null}
+                {phase.phase_payload?.label ? (
+                  <p className="route-muted-text">Thông điệp phase: {phase.phase_payload.label}</p>
+                ) : null}
+                {controlState.error ? (
+                  <p className="route-error-text">{controlState.error}</p>
+                ) : null}
+              </div>
+
+              <AdminSessionManager
+                sessions={sessions}
+                loading={controlState.loading}
+                error={controlState.error}
+                onRefresh={handleRefreshControl}
+                onRevoke={handleRevokeSession}
+                revokePendingId={revokePendingId}
+              />
+            </aside>
+
+            <div className="route-admin-main">
+              <AdminPhaseControls
+                phase={phase}
+                summary={summary}
+                onChanged={handleRefreshControl}
+              />
+              <AdminRound1Manager phase={phase} onChanged={handleRefreshControl} />
+              <AdminRound2Manager phase={phase} onChanged={handleRefreshControl} />
+              <AdminResultsPanel snapshot={snapshot} />
+
+              <div className="route-info-card">
+                <h2>Điểm Neo Cho Spec Sau</h2>
+                <p>
+                  Control room này đã được chỉnh theo hướng operator-first: phase tổng quát, snapshot hệ
+                  thống, team sessions, Round 1 orchestration và Round 2 activation/publish. Bước sau cùng
+                  sẽ là polish flow BGK và presenter để buổi event chạy mượt hơn nữa.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         <div className="route-info-card">

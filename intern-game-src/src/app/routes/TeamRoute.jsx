@@ -3,54 +3,71 @@ import { Link, useParams } from 'react-router-dom';
 import { TEAMS } from '../../data/teams';
 import '../../screens/Round1.css';
 import RoleShell from '../layouts/RoleShell';
-import RoleIdentityCard from '../../components/RoleIdentityCard';
 import RoleLoginCard from '../../components/RoleLoginCard';
 import SharedPhaseCard from '../../components/SharedPhaseCard';
 import TeamSessionCard from '../../components/TeamSessionCard';
 import TeamRound1Panel from '../../components/TeamRound1Panel';
+import TeamRound2Panel from '../../components/TeamRound2Panel';
+import TeamResultsPanel from '../../components/TeamResultsPanel';
 import { useSupabasePhase } from '../../hooks/useSupabasePhase';
-import { useSupabaseRoleSession } from '../../hooks/useSupabaseRoleSession';
-import { signInWithAccount, signOut } from '../../lib/supabase/auth';
+import { getDeviceLabel } from '../../lib/supabase/device';
 import {
-  getDeviceFingerprint,
-  getDeviceLabel,
-  resetDeviceFingerprint,
-} from '../../lib/supabase/device';
-import {
-  LIVE_REFRESH_INTERVAL_MS,
+  getSnapshotRefreshInterval,
+  getTeamLiveSnapshot,
 } from '../../lib/game-backend';
 import {
-  claimTeamSession,
-  getCurrentDeviceTeamSession,
+  joinTeamSession,
+  leaveTeamSession,
 } from '../../lib/supabase/sessions';
+import {
+  clearStoredTeamSession,
+  createTeamSessionToken,
+  isInvalidTeamSessionError,
+  readStoredTeamSession,
+  storeTeamSession,
+} from '../../lib/teamSession';
+
+function getStoredSessionTokenForTeam(teamId) {
+  const stored = readStoredTeamSession();
+  if (stored.teamCode !== teamId) {
+    return '';
+  }
+
+  return stored.sessionToken || '';
+}
 
 export default function TeamRoute() {
   const { teamId } = useParams();
   const team = TEAMS.find((entry) => entry.id === teamId);
   const phaseState = useSupabasePhase();
-  const authState = useSupabaseRoleSession();
   const [loginError, setLoginError] = useState('');
   const [sessionState, setSessionState] = useState({
     session: null,
     loading: false,
     error: '',
   });
-  const [resetPending, setResetPending] = useState(false);
+  const [sessionToken, setSessionToken] = useState(() => getStoredSessionTokenForTeam(teamId));
 
-  const [deviceFingerprint, setDeviceFingerprint] = useState(() =>
-    getDeviceFingerprint()
-  );
   const deviceLabel = useMemo(() => getDeviceLabel(), []);
-  const isExpectedTeamUser =
-    authState.profile?.role === 'team' && authState.profile?.team_id;
+  const sessionPollIntervalMs = getSnapshotRefreshInterval(phaseState.phase);
 
   useEffect(() => {
-    if (!team || !isExpectedTeamUser) return undefined;
+    setSessionToken(getStoredSessionTokenForTeam(teamId));
+    setSessionState({
+      session: null,
+      loading: false,
+      error: '',
+    });
+    setLoginError('');
+  }, [teamId]);
+
+  useEffect(() => {
+    if (!team || !sessionToken) return undefined;
 
     let alive = true;
     let intervalId = null;
 
-    async function syncCurrentDeviceSession() {
+    async function syncCurrentSession() {
       try {
         if (alive) {
           setSessionState((current) => ({
@@ -60,26 +77,37 @@ export default function TeamRoute() {
           }));
         }
 
-        const nextSession =
-          (await getCurrentDeviceTeamSession(
-            authState.profile.team_id,
-            deviceFingerprint
-          )) ||
-          (await claimTeamSession({
-            teamId,
-            deviceLabel,
-            deviceFingerprint,
-          }));
+        const snapshot = await getTeamLiveSnapshot({
+          teamCode: teamId,
+          sessionToken,
+        });
 
         if (!alive) return;
 
         setSessionState({
-          session: nextSession,
+          session: snapshot?.session || null,
           loading: false,
-          error: '',
+          error:
+            snapshot?.session?.status === 'revoked'
+              ? 'Phiên của tab này đã bị một lần đăng nhập mới hơn thay thế.'
+              : '',
         });
+        setLoginError('');
       } catch (error) {
         if (!alive) return;
+
+        if (isInvalidTeamSessionError(error)) {
+          clearStoredTeamSession();
+          setSessionToken('');
+          setSessionState({
+            session: null,
+            loading: false,
+            error:
+              'Phiên đăng nhập của đội đã được mở ở thiết bị khác. Vui lòng nhập lại mật khẩu để tiếp tục.',
+          });
+          return;
+        }
+
         setSessionState({
           session: null,
           loading: false,
@@ -88,49 +116,72 @@ export default function TeamRoute() {
       }
     }
 
-    void syncCurrentDeviceSession();
+    void syncCurrentSession();
     intervalId = window.setInterval(() => {
-      void syncCurrentDeviceSession();
-    }, LIVE_REFRESH_INTERVAL_MS);
+      void syncCurrentSession();
+    }, sessionPollIntervalMs);
 
     return () => {
       alive = false;
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [
-    authState.profile?.team_id,
-    deviceFingerprint,
-    deviceLabel,
-    isExpectedTeamUser,
-    team,
-    teamId,
-  ]);
+  }, [sessionPollIntervalMs, sessionToken, team, teamId]);
 
-  async function handleLogin({ identifier, password }) {
+  async function handleLogin({ password }) {
+    if (!team) return;
+
     try {
       setLoginError('');
-      await signInWithAccount({ identifier, password });
+
+      if (!password) {
+        setLoginError('Hãy nhập mật khẩu của phòng ban.');
+        return;
+      }
+
+      const nextSessionToken = createTeamSessionToken();
+      await joinTeamSession({
+        teamCode: team.id,
+        password,
+        sessionToken: nextSessionToken,
+        deviceLabel,
+      });
+      storeTeamSession({
+        teamCode: team.id,
+        sessionToken: nextSessionToken,
+      });
+      setSessionToken(nextSessionToken);
+      setSessionState({
+        session: null,
+        loading: true,
+        error: '',
+      });
     } catch (error) {
       setLoginError(error?.message || 'Đăng nhập team thất bại.');
     }
   }
 
   async function handleSignOut() {
-    await signOut();
-  }
-
-  function handleResetDevice() {
-    setResetPending(true);
-    const nextFingerprint = resetDeviceFingerprint();
-    setSessionState({
-      session: null,
-      loading: false,
-      error: '',
-    });
-    setDeviceFingerprint(nextFingerprint);
-    window.setTimeout(() => {
-      setResetPending(false);
-    }, 250);
+    try {
+      if (sessionToken) {
+        await leaveTeamSession(sessionToken);
+      }
+    } catch (error) {
+      if (!isInvalidTeamSessionError(error)) {
+        setSessionState((current) => ({
+          ...current,
+          error: error?.message || 'Không thể đóng phiên team lúc này.',
+        }));
+      }
+    } finally {
+      clearStoredTeamSession();
+      setSessionToken('');
+      setSessionState({
+        session: null,
+        loading: false,
+        error: '',
+      });
+      setLoginError('');
+    }
   }
 
   function getConnectionTone() {
@@ -138,7 +189,7 @@ export default function TeamRoute() {
     if (sessionState.session.status === 'revoked') {
       return 'route-status-pill route-status-pill--danger';
     }
-    if (sessionState.session.can_control) {
+    if (sessionState.session.status === 'active') {
       return 'route-status-pill route-status-pill--success';
     }
     return 'route-status-pill route-status-pill--warning';
@@ -146,9 +197,9 @@ export default function TeamRoute() {
 
   function getConnectionLabel() {
     if (!sessionState.session) return 'Chưa đồng bộ phiên';
-    if (sessionState.session.status === 'revoked') return 'Thiết bị đã bị thu hồi';
-    if (sessionState.session.can_control) return 'Máy chính đang điều khiển';
-    return 'Máy phụ chỉ được xem';
+    if (sessionState.session.status === 'revoked') return 'Phiên này đã bị thay thế';
+    if (sessionState.session.status === 'active') return 'Phiên đang điều khiển';
+    return 'Phiên không hoạt động';
   }
 
   if (!team) {
@@ -167,7 +218,7 @@ export default function TeamRoute() {
     );
   }
 
-  if (authState.user && authState.profile?.role === 'team') {
+  if (sessionToken && sessionState.session?.status === 'active') {
     return (
       <div className="team-live screen">
         <div className="lobby-grid" />
@@ -180,7 +231,9 @@ export default function TeamRoute() {
             <span className="hud-round-label">
               {phaseState.phase.current_phase === 'round1'
                 ? 'VÒNG 1 — NGÂN SÁCH NHÂN SỰ'
-                : `PHASE — ${String(phaseState.phase.current_phase || 'LOBBY').toUpperCase()}`}
+                : phaseState.phase.current_phase === 'round2'
+                  ? 'VÒNG 2 — HỌP KHẨN VỚI SẾP'
+                  : `PHASE — ${String(phaseState.phase.current_phase || 'LOBBY').toUpperCase()}`}
             </span>
           </div>
 
@@ -199,13 +252,27 @@ export default function TeamRoute() {
           </div>
         </header>
 
-        <TeamRound1Panel
-          team={team}
-          phase={phaseState.phase}
-          session={sessionState.session}
-          deviceFingerprint={deviceFingerprint}
-          profileTeamId={authState.profile?.team_id}
-        />
+        {phaseState.phase.current_phase === 'results' ? (
+          <TeamResultsPanel
+            team={team}
+            phase={phaseState.phase}
+            sessionToken={sessionToken}
+          />
+        ) : phaseState.phase.current_phase === 'round2' ? (
+          <TeamRound2Panel
+            team={team}
+            phase={phaseState.phase}
+            session={sessionState.session}
+            sessionToken={sessionToken}
+          />
+        ) : (
+          <TeamRound1Panel
+            team={team}
+            phase={phaseState.phase}
+            session={sessionState.session}
+            sessionToken={sessionToken}
+          />
+        )}
 
         <details className="team-live__ops-panel">
           <summary>Thông tin kết nối</summary>
@@ -214,18 +281,15 @@ export default function TeamRoute() {
               session={sessionState.session}
               loading={sessionState.loading}
               error={sessionState.error}
-              onResetDevice={handleResetDevice}
-              resetPending={resetPending}
             />
             <SharedPhaseCard roleLabel={`team:${team.id}`} phaseState={phaseState} />
-            <RoleIdentityCard
-              title="Danh Tính Team"
-              user={authState.user}
-              profile={authState.profile}
-              roleHint={`Route hiện tại: /team/${team.id}`}
-            >
-              <p className="route-muted-text">Mã thiết bị: {deviceFingerprint}</p>
-            </RoleIdentityCard>
+            <div className="route-info-card">
+              <h2>Danh Tính Team</h2>
+              <p>Route hiện tại: /team/{team.id}</p>
+              <p className="route-muted-text">
+                Mã phiên tab: {sessionState.session?.session_token || sessionToken}
+              </p>
+            </div>
           </div>
         </details>
       </div>
@@ -236,35 +300,23 @@ export default function TeamRoute() {
     <RoleShell
       eyebrow="ĐIỂM VÀO THEO ĐỘI"
       title={team.name.toUpperCase()}
-      subtitle="Đây là route dành riêng cho từng đội. Team đăng nhập bằng alias của mình, rồi nhận quyền primary hoặc secondary theo session policy."
+      subtitle="Đây là route dành riêng cho từng đội. Mỗi lần đăng nhập thành công sẽ thay thế phiên active cũ của đội đó."
       badge={`${team.icon} ${team.name}`}
     >
       <div className="route-info-grid">
         <SharedPhaseCard roleLabel={`team:${team.id}`} phaseState={phaseState} />
 
-        {!authState.user ? (
-          <RoleLoginCard
-            title="Đăng Nhập Team"
-            description="Mỗi đội đăng nhập bằng mã team và mật khẩu. Session đầu tiên sẽ thành primary controller, session sau vào read-only."
-            accentLabel={`Đang vào route đội: ${team.name}`}
-            loading={authState.loading}
-            error={loginError || authState.error}
-            inputLabel="Mã team"
-            inputPlaceholder={`Nhập \`${team.id}\``}
-            defaultIdentifier={team.id}
-            onSubmit={handleLogin}
-          />
-        ) : authState.profile?.role !== 'team' ? (
-          <div className="route-info-card">
-            <h2>Không Được Truy Cập</h2>
-            <p>Tài khoản hiện tại không có role `team` nên không được vào team route.</p>
-            <button className="btn btn-danger" type="button" onClick={handleSignOut}>
-              Đăng xuất
-            </button>
-          </div>
-        ) : (
-          null
-        )}
+        <RoleLoginCard
+          title="Đăng Nhập Team"
+          description="Mỗi đội chỉ có một phiên active tại một thời điểm. Nếu cùng một đội đăng nhập ở tab hoặc thiết bị khác, phiên cũ sẽ tự bị thay thế."
+          accentLabel={`Đang vào route đội: ${team.name}`}
+          loading={sessionState.loading}
+          error={loginError || sessionState.error}
+          inputLabel="Mã team"
+          inputPlaceholder={`Nhập \`${team.id}\``}
+          defaultIdentifier={team.id}
+          onSubmit={handleLogin}
+        />
 
         <div className="route-info-card">
           <h2>Cầu Nối Migration</h2>

@@ -3,7 +3,7 @@ import { TEAMS } from '../data/teams';
 import { useGame } from '../hooks/useGameContext';
 import './ControlPanel.css';
 
-const SCREENS = ['lobby', 'round1', 'round2', 'bonus', 'results'];
+const SCREENS = ['lobby', 'round1', 'round2', 'results'];
 
 export default function ControlPanel() {
   const { state, dispatch } = useGame();
@@ -95,21 +95,13 @@ export default function ControlPanel() {
           </div>
 
           <div className="control-section">
-            <div className="control-label">Round 2 / Bonus</div>
+            <div className="control-label">Round 2</div>
             <div className="control-stat">
               <span>Round 2 Score</span>
               <div className="control-inline-actions">
                 <button type="button" onClick={() => dispatch({ type: 'SET_ROUND2_SCORE', payload: Math.max(0, state.round2.score - 1) })}>-</button>
                 <span>{state.round2.score}</span>
                 <button type="button" onClick={() => dispatch({ type: 'SET_ROUND2_SCORE', payload: Math.min(5, state.round2.score + 1) })}>+</button>
-              </div>
-            </div>
-            <div className="control-stat">
-              <span>Bonus Score</span>
-              <div className="control-inline-actions">
-                <button type="button" onClick={() => dispatch({ type: 'SET_BONUS_SCORE', payload: 0 })}>0</button>
-                <span>{state.bonus.score}</span>
-                <button type="button" onClick={() => dispatch({ type: 'SET_BONUS_SCORE', payload: 2 })}>2</button>
               </div>
             </div>
           </div>

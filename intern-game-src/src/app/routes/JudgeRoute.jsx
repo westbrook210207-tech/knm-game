@@ -2,17 +2,32 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { JUDGES } from '../../data/judges';
 import RoleShell from '../layouts/RoleShell';
-import RoleIdentityCard from '../../components/RoleIdentityCard';
 import RoleLoginCard from '../../components/RoleLoginCard';
 import SharedPhaseCard from '../../components/SharedPhaseCard';
-import { useSupabaseRoleSession } from '../../hooks/useSupabaseRoleSession';
-import { signInWithAccount, signOut } from '../../lib/supabase/auth';
+import JudgeRound2Panel from '../../components/JudgeRound2Panel';
+import { useSupabasePhase } from '../../hooks/useSupabasePhase';
+import { getDeviceLabel } from '../../lib/supabase/device';
+import { joinJudgeSession, leaveJudgeSession } from '../../lib/supabase/sessions';
+import {
+  clearStoredJudgeSession,
+  createJudgeSessionToken,
+  isInvalidJudgeSessionError,
+  readStoredJudgeSession,
+  storeJudgeSession,
+} from '../../lib/judgeSession';
 
 export default function JudgeRoute() {
   const { judgeId } = useParams();
   const judge = JUDGES.find((entry) => entry.id === judgeId);
-  const authState = useSupabaseRoleSession();
+  const phaseState = useSupabasePhase();
+  const storedSession = readStoredJudgeSession();
+  const initialSessionToken =
+    storedSession.judgeCode === judgeId ? storedSession.sessionToken : '';
+
+  const [sessionToken, setSessionToken] = useState(initialSessionToken);
+  const [sessionNotice, setSessionNotice] = useState('');
   const [loginError, setLoginError] = useState('');
+  const hasActiveSession = Boolean(sessionToken);
 
   if (!judge) {
     return (
@@ -33,66 +48,119 @@ export default function JudgeRoute() {
   async function handleLogin({ identifier, password }) {
     try {
       setLoginError('');
-      await signInWithAccount({ identifier, password });
+      setSessionNotice('');
+
+      if (identifier !== judge.id) {
+        setLoginError(`Route này chỉ chấp nhận mã ${judge.id}.`);
+        return;
+      }
+
+      const nextToken = createJudgeSessionToken();
+      await joinJudgeSession({
+        judgeCode: judge.id,
+        password,
+        sessionToken: nextToken,
+        deviceLabel: getDeviceLabel(),
+      });
+      storeJudgeSession({
+        judgeCode: judge.id,
+        sessionToken: nextToken,
+      });
+      setSessionToken(nextToken);
+      setSessionNotice('Phiên giám khảo đã sẵn sàng. Nếu đăng nhập ở máy khác, máy này sẽ tự mất quyền.');
     } catch (error) {
       setLoginError(error?.message || 'Đăng nhập judge thất bại.');
     }
   }
 
   async function handleSignOut() {
-    await signOut();
+    try {
+      setLoginError('');
+      if (sessionToken) {
+        await leaveJudgeSession({
+          judgeCode: judge.id,
+          sessionToken,
+        });
+      }
+    } catch (error) {
+      if (!isInvalidJudgeSessionError(error)) {
+        setLoginError(error?.message || 'Không thể thoát phiên giám khảo.');
+        return;
+      }
+    }
+
+    clearStoredJudgeSession();
+    setSessionToken('');
+    setSessionNotice('');
   }
 
-  const isJudge = authState.profile?.role === 'judge';
-  const judgeCodeMatches =
-    !authState.profile?.judge_code || authState.profile.judge_code === judgeId;
+  function handleSessionInvalid() {
+    clearStoredJudgeSession();
+    setSessionToken('');
+    setSessionNotice(
+      'Phiên giám khảo đã được mở ở thiết bị khác. Vui lòng đăng nhập lại để tiếp tục chấm.'
+    );
+  }
 
   return (
     <RoleShell
       eyebrow="BAN GIÁM KHẢO"
       title={judge.name.toUpperCase()}
-      subtitle="Màn hình dành cho ban giám khảo. Ở phase 004, route này tập trung vào identity/login để chuẩn bị cho phase chấm điểm sau."
+      subtitle="Màn hình dành cho ban giám khảo. Judge giờ dùng session-token đơn giản giống team: đăng nhập nhẹ, single active session, và tự mất quyền nếu mở ở máy khác."
       badge="Judge"
     >
       <div className="route-info-grid">
-        <SharedPhaseCard roleLabel={`judge:${judge.id}`} />
-        {!authState.user ? (
-          <RoleLoginCard
-            title="Đăng Nhập Giám Khảo"
-            description="Giám khảo đăng nhập bằng mã judge và mật khẩu. Route này hiện dùng để xác lập danh tính cho phase chấm điểm sau."
-            accentLabel={`Mã judge hiện tại: ${judge.id}`}
-            loading={authState.loading}
-            error={loginError || authState.error}
-            inputLabel="Mã giám khảo"
-            inputPlaceholder={`Nhập \`${judge.id}\``}
-            defaultIdentifier={judge.id}
-            onSubmit={handleLogin}
-          />
-        ) : !isJudge || !judgeCodeMatches ? (
-          <div className="route-info-card">
-            <h2>Không Được Truy Cập</h2>
-            <p>Tài khoản hiện tại không hợp lệ cho judge route này.</p>
-            <button className="btn btn-danger" type="button" onClick={handleSignOut}>
-              Đăng xuất
-            </button>
-          </div>
+        <SharedPhaseCard roleLabel={`judge:${judge.id}`} phaseState={phaseState} />
+        {!hasActiveSession ? (
+          <>
+            <RoleLoginCard
+              title="Đăng Nhập Giám Khảo"
+              description="Giám khảo đăng nhập bằng mã judge và mật khẩu. Mỗi giám khảo chỉ có một phiên active tại một thời điểm."
+              accentLabel={`Mã judge hiện tại: ${judge.id}`}
+              loading={false}
+              error={loginError}
+              inputLabel="Mã giám khảo"
+              inputPlaceholder={`Nhập \`${judge.id}\``}
+              defaultIdentifier={judge.id}
+              onSubmit={handleLogin}
+            />
+            {sessionNotice ? (
+              <div className="route-info-card">
+                <h2>Thông Báo Phiên</h2>
+                <p className="route-muted-text">{sessionNotice}</p>
+              </div>
+            ) : null}
+          </>
         ) : (
-          <RoleIdentityCard
-            title="Danh Tính Giám Khảo"
-            user={authState.user}
-            profile={authState.profile}
-            roleHint={`Mã giám khảo: ${authState.profile?.judge_code || 'chưa-có'}`}
-          >
+          <div className="route-info-card">
+            <h2>Phiên Giám Khảo</h2>
+            <p>Mã giám khảo: {judge.id}</p>
+            <p>Trạng thái: active</p>
+            <p>Loại phiên: single active session</p>
+            {sessionNotice ? <p className="route-phase-success">{sessionNotice}</p> : null}
             <div className="route-inline-actions">
               <button className="btn btn-danger" type="button" onClick={handleSignOut}>
-                Đăng xuất
+                Thoát phiên
               </button>
             </div>
-          </RoleIdentityCard>
+          </div>
+        )}
+        {hasActiveSession ? (
+          <JudgeRound2Panel
+            judgeId={judge.id}
+            phase={phaseState.phase}
+            sessionToken={sessionToken}
+            onSessionInvalid={handleSessionInvalid}
+          />
+        ) : (
+          <div className="route-info-card route-round1-card route-round1-card--wide">
+            <h2>Chấm Điểm Round 2</h2>
+            <p>Đăng nhập phiên giám khảo trước để xem rubric chấm điểm và nộp điểm cho đội đang active.</p>
+          </div>
         )}
         <div className="route-info-card">
           <h2>Phạm Vi Judge</h2>
-          <p>Judge hiện tại: {judge.id}. Route đã sẵn sàng để nhận session và scoring UI ở phase sau.</p>
+          <p>Judge hiện tại: {judge.id}. Route này giữ nguyên UI chấm điểm, nhưng engine đăng nhập đã đổi sang session-token nhẹ giống team để đỡ phụ thuộc Supabase Auth.</p>
         </div>
       </div>
     </RoleShell>
