@@ -43,7 +43,7 @@ export default function RoleLoginCard({
           <span>Mật khẩu</span>
           <input
             className="route-input"
-            type="password"
+            type="text"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Nhập mật khẩu"

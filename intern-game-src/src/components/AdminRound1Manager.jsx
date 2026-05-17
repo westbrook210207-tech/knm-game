@@ -5,7 +5,6 @@ import { ROUND1_QUESTIONS } from '../data/round1Questions';
 import { getSupabaseEnv } from '../lib/supabase/env';
 import {
   getAdminRound1Snapshot,
-  getSnapshotRefreshInterval,
 } from '../lib/game-backend';
 import {
   adminMarkRound1Bet,
@@ -29,9 +28,21 @@ function getStageLabel(stage) {
   return 'Chưa kích hoạt';
 }
 
+function keepDraftResultsForPendingBets(currentDrafts, nextBets) {
+  const pendingTeamCodes = new Set(
+    (nextBets || [])
+      .filter((bet) => bet?.resolution === 'pending')
+      .map((bet) => bet?.teams?.team_code || bet?.team_code)
+      .filter(Boolean)
+  );
+
+  return Object.fromEntries(
+    Object.entries(currentDrafts).filter(([teamCode]) => pendingTeamCodes.has(teamCode))
+  );
+}
+
 export default function AdminRound1Manager({ phase, onChanged }) {
   const liveState = getRound1LiveState(phase);
-  const pollIntervalMs = getSnapshotRefreshInterval(phase);
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(
     liveState.questionIndex ?? 0
   );
@@ -81,37 +92,26 @@ export default function AdminRound1Manager({ phase, onChanged }) {
     }
   }, [liveState.countdownSeconds]);
 
-  useEffect(() => {
-    let alive = true;
-
-    async function load() {
-      try {
-        setLoading(true);
-        const snapshot = await getAdminRound1Snapshot(selectedQuestionIndex);
-
-        if (!alive) return;
-        setBets(snapshot.bets || []);
-        setScores(snapshot.leaderboard || []);
-        setDraftResults({});
-        setError('');
-      } catch (nextError) {
-        if (!alive) return;
-        setError(nextError?.message || 'Không tải được dữ liệu Round 1.');
-      } finally {
-        if (alive) setLoading(false);
-      }
+  const loadRound1Snapshot = useCallback(async () => {
+    try {
+      setLoading(true);
+      const snapshot = await getAdminRound1Snapshot(selectedQuestionIndex);
+      setBets(snapshot.bets || []);
+      setScores(snapshot.leaderboard || []);
+      setDraftResults((current) =>
+        keepDraftResultsForPendingBets(current, snapshot.bets || [])
+      );
+      setError('');
+    } catch (nextError) {
+      setError(nextError?.message || 'Không tải được dữ liệu Round 1.');
+    } finally {
+      setLoading(false);
     }
+  }, [selectedQuestionIndex]);
 
-    void load();
-    const intervalId = window.setInterval(() => {
-      void load();
-    }, pollIntervalMs);
-
-    return () => {
-      alive = false;
-      window.clearInterval(intervalId);
-    };
-  }, [pollIntervalMs, selectedQuestionIndex]);
+  useEffect(() => {
+    void loadRound1Snapshot();
+  }, [loadRound1Snapshot]);
 
   const handleSetStage = useCallback((stage) => {
     startTransition(async () => {
@@ -234,9 +234,7 @@ export default function AdminRound1Manager({ phase, onChanged }) {
         )
       );
       await onChanged?.();
-      const snapshot = await getAdminRound1Snapshot(selectedQuestionIndex);
-      setBets(snapshot.bets || []);
-      setScores(snapshot.leaderboard || []);
+      await loadRound1Snapshot();
       setDraftResults({});
       setMessage(`Đã nộp ${entries.length} kết quả chấm cho câu ${selectedQuestionIndex + 1}.`);
     } catch (nextError) {
@@ -259,9 +257,7 @@ export default function AdminRound1Manager({ phase, onChanged }) {
       setMessage('');
       await adminResetGameplayState(eventSlug);
       await onChanged?.();
-      const snapshot = await getAdminRound1Snapshot(selectedQuestionIndex);
-      setBets(snapshot.bets || []);
-      setScores(snapshot.leaderboard || []);
+      await loadRound1Snapshot();
       setMessage('Đã reset dữ liệu chơi về trạng thái lobby an toàn.');
     } catch (nextError) {
       setError(nextError?.message || 'Không reset được dữ liệu chơi.');
@@ -312,6 +308,17 @@ export default function AdminRound1Manager({ phase, onChanged }) {
         </div>
 
         <div className="route-inline-actions">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setMessage('');
+              void loadRound1Snapshot();
+            }}
+            disabled={loading || pendingTeamCode === 'submit'}
+          >
+            {loading ? 'Đang làm mới...' : 'Làm mới danh sách'}
+          </button>
           <button
             type="button"
             className="btn btn-primary"
@@ -398,15 +405,27 @@ export default function AdminRound1Manager({ phase, onChanged }) {
             {pendingTeamCode === 'submit' ? 'Đang nộp...' : `Nộp kết quả (${draftCount})`}
           </button>
         </div>
+        <p className="route-muted-text">
+          Bảng chấm này không tự poll liên tục. Hãy bấm <strong>Làm mới danh sách</strong> trước khi chấm nếu bạn muốn kéo snapshot mới nhất từ backend.
+        </p>
         <div className="route-round1-list">
           {TEAMS.map((team) => {
             const bet = betMap.get(team.id) || null;
             const score = scoreMap.get(team.id) || null;
             const draftResolution = draftResults[team.id] || null;
             const isResolved = bet?.resolution && bet.resolution !== 'pending';
+            const rowClassName = [
+              'route-round1-row',
+              draftResolution === 'correct' ? 'route-round1-row--draft-correct' : '',
+              draftResolution === 'wrong' ? 'route-round1-row--draft-wrong' : '',
+              bet?.resolution === 'correct' ? 'route-round1-row--resolved-correct' : '',
+              bet?.resolution === 'wrong' ? 'route-round1-row--resolved-wrong' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
 
             return (
-              <div className="route-round1-row" key={team.id}>
+              <div className={rowClassName} key={team.id}>
                 <div>
                   <strong>
                     {team.icon} {team.name}
@@ -426,12 +445,18 @@ export default function AdminRound1Manager({ phase, onChanged }) {
                     <p className="route-phase-success">
                       Chọn tạm: {draftResolution === 'correct' ? 'Đúng' : 'Sai'}
                     </p>
+                  ) : isResolved ? (
+                    <p className="route-muted-text">
+                      Đã chấm thật: {bet?.resolution === 'correct' ? 'Đúng' : 'Sai'}
+                    </p>
                   ) : null}
                 </div>
                 <div className="route-inline-actions">
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className={`btn btn-primary route-round1-action-button ${
+                      draftResolution === 'correct' ? 'route-round1-action-button--active' : ''
+                    }`}
                     onClick={() => handlePickResult(team.id, 'correct')}
                     disabled={!bet || isResolved || pendingTeamCode === 'submit'}
                   >
@@ -439,7 +464,9 @@ export default function AdminRound1Manager({ phase, onChanged }) {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-danger"
+                    className={`btn btn-danger route-round1-action-button ${
+                      draftResolution === 'wrong' ? 'route-round1-action-button--active' : ''
+                    }`}
                     onClick={() => handlePickResult(team.id, 'wrong')}
                     disabled={!bet || isResolved || pendingTeamCode === 'submit'}
                   >
@@ -447,7 +474,9 @@ export default function AdminRound1Manager({ phase, onChanged }) {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-ghost"
+                    className={`btn btn-ghost route-round1-action-button ${
+                      !draftResolution && !isResolved ? 'route-round1-action-button--muted' : ''
+                    }`}
                     onClick={() => handleClearDraft(team.id)}
                     disabled={!draftResolution || pendingTeamCode === 'submit'}
                   >
@@ -458,7 +487,9 @@ export default function AdminRound1Manager({ phase, onChanged }) {
             );
           })}
         </div>
-        {loading ? <p className="route-muted-text">Đang đồng bộ bảng chấm...</p> : null}
+        <p className={`route-muted-text route-sync-status ${loading ? 'route-sync-status--active' : ''}`}>
+          {loading ? 'Đang đồng bộ bảng chấm...' : ' '}
+        </p>
       </div>
 
       <div className="route-info-card route-round1-card">

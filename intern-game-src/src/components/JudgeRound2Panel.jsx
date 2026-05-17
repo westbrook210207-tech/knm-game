@@ -54,6 +54,7 @@ export default function JudgeRound2Panel({
   });
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
+  const [draftCaseKey, setDraftCaseKey] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -71,21 +72,6 @@ export default function JudgeRound2Panel({
           submissions: nextSnapshot.judge_submissions || [],
           error: '',
         });
-        if (nextSnapshot.current_submission) {
-          setForm({
-            analysisScore: nextSnapshot.current_submission.analysis_score,
-            strategyScore: nextSnapshot.current_submission.strategy_score,
-            deliveryScore: nextSnapshot.current_submission.delivery_score,
-            notes: nextSnapshot.current_submission.notes || '',
-          });
-        } else {
-          setForm({
-            analysisScore: null,
-            strategyScore: null,
-            deliveryScore: null,
-            notes: '',
-          });
-        }
       } catch (error) {
         if (error?.message?.includes('Invalid judge session.')) {
           onSessionInvalid?.();
@@ -109,6 +95,42 @@ export default function JudgeRound2Panel({
       window.clearInterval(intervalId);
     };
   }, [judgeId, onSessionInvalid, pollIntervalMs, sessionToken]);
+
+  useEffect(() => {
+    const activeCaseKey = snapshot.activeCase?.team?.team_code || '';
+
+    if (!activeCaseKey) {
+      setForm({
+        analysisScore: null,
+        strategyScore: null,
+        deliveryScore: null,
+        notes: '',
+      });
+      setDraftCaseKey('');
+      return;
+    }
+
+    if (snapshot.currentSubmission) {
+      setForm({
+        analysisScore: snapshot.currentSubmission.analysis_score,
+        strategyScore: snapshot.currentSubmission.strategy_score,
+        deliveryScore: snapshot.currentSubmission.delivery_score,
+        notes: snapshot.currentSubmission.notes || '',
+      });
+      setDraftCaseKey(activeCaseKey);
+      return;
+    }
+
+    if (draftCaseKey !== activeCaseKey) {
+      setForm({
+        analysisScore: null,
+        strategyScore: null,
+        deliveryScore: null,
+        notes: '',
+      });
+      setDraftCaseKey(activeCaseKey);
+    }
+  }, [draftCaseKey, snapshot.activeCase, snapshot.currentSubmission]);
 
   async function handleSubmit(event) {
     event.preventDefault();

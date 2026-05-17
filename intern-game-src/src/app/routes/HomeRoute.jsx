@@ -148,7 +148,7 @@ export default function HomeRoute() {
               <span>Mật khẩu phòng ban</span>
               <input
                 className="route-input"
-                type="password"
+                type="text"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Nhập mật khẩu"

@@ -583,6 +583,46 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.route-round1-row--draft-correct {
+  border-color: rgba(101, 224, 84, 0.48);
+  background: rgba(101, 224, 84, 0.09);
+  box-shadow: 0 0 0 1px rgba(101, 224, 84, 0.12) inset;
+}
+
+.route-round1-row--draft-wrong {
+  border-color: rgba(255, 96, 96, 0.42);
+  background: rgba(255, 96, 96, 0.08);
+  box-shadow: 0 0 0 1px rgba(255, 96, 96, 0.11) inset;
+}
+
+.route-round1-row--resolved-correct {
+  border-color: rgba(101, 224, 84, 0.22);
+}
+
+.route-round1-row--resolved-wrong {
+  border-color: rgba(255, 96, 96, 0.2);
+}
+
+.route-round1-action-button {
+  min-width: 92px;
+}
+
+.route-round1-action-button--active {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 0 18px rgba(245, 197, 24, 0.16);
+}
+
+.route-round1-action-button--muted {
+  opacity: 0.9;
 }
 
 .route-inline-actions--chips {
@@ -671,6 +711,15 @@ body {
   font-family: var(--font-display);
   font-size: 2rem;
   line-height: 1;
+}
+
+.route-sync-status {
+  min-height: 1.4rem;
+  margin-top: 0.4rem;
+}
+
+.route-sync-status--active {
+  color: var(--accent-yellow);
 }
 
 .team-live__options {

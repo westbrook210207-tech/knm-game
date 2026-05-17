@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import FocusModal from './FocusModal';
 import Timer from './Timer';
 import Typewriter from './Typewriter';
@@ -110,6 +110,7 @@ export default function TeamRound1Panel({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   const canControl = Boolean(session?.can_control);
   const questionNumber =
@@ -126,7 +127,9 @@ export default function TeamRound1Panel({
       if (!sessionToken || !team?.id || !liveState.isRound1) return;
 
       try {
-        setLoading(true);
+        if (!hasLoadedRef.current) {
+          setLoading(true);
+        }
         const snapshot = await getTeamLiveSnapshot({
           teamCode: team?.id,
           sessionToken,
@@ -139,6 +142,7 @@ export default function TeamRound1Panel({
           setBetAmount(snapshot.bet.bet_amount);
         }
         setError('');
+        hasLoadedRef.current = true;
       } catch (nextError) {
         if (!alive) return;
         setError(nextError?.message || 'Không tải được trạng thái Round 1 của đội.');
