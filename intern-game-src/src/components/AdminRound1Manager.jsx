@@ -451,7 +451,11 @@ export default function AdminRound1Manager({ phase, onChanged }) {
                     </p>
                   ) : null}
                 </div>
-                <div className="route-inline-actions">
+                <div
+                  className={`route-inline-actions ${
+                    isResolved ? 'route-inline-actions--resolved' : ''
+                  }`}
+                >
                   <button
                     type="button"
                     className={`btn btn-primary route-round1-action-button ${

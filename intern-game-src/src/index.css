@@ -487,6 +487,28 @@ body {
   color: var(--accent-yellow);
 }
 
+.route-session-list--checklist {
+  gap: 0.6rem;
+}
+
+.route-session-row--team-status {
+  align-items: center;
+}
+
+.route-session-row--team-status p {
+  margin-top: 0.35rem;
+}
+
+.route-admin-stats--sessions {
+  margin-top: 1rem;
+}
+
+.route-session-checklist-note {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  text-align: right;
+}
+
 .route-round1-card {
   min-height: 0;
 }
@@ -612,6 +634,21 @@ body {
 
 .route-round1-action-button {
   min-width: 92px;
+}
+
+.route-round1-action-button[disabled] {
+  opacity: 0.4;
+  filter: saturate(0.25);
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
+.route-inline-actions--resolved .route-round1-action-button[disabled] {
+  opacity: 0.28;
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(230, 230, 240, 0.42);
 }
 
 .route-round1-action-button--active {
